@@ -1,8 +1,10 @@
 import gradio as gr
 
 from story_engine import (
+    EndingResponse,
     create_initial_state,
     generate_scene,
+    get_ending_markdown,
     get_scene_markdown,
 )
 
@@ -70,7 +72,7 @@ def get_choice_cards(scene_response):
     )
 
 
-def start_story(premise: str):
+def start_story(premise: str, mode: str, max_steps: int):
     if not premise.strip():
         yield (
             "Please enter a premise first.",
@@ -90,14 +92,14 @@ def start_story(premise: str):
         "",
         "",
         "",
-        "The model is writing. Local GGUF inference can be slow.",
+        "The model is writing. Local or remote inference can be slow.",
         gr.update(interactive=False),
         gr.update(interactive=False),
         gr.update(interactive=False),
         None,
     )
 
-    state = create_initial_state(premise)
+    state = create_initial_state(premise, mode=mode, max_steps=max_steps)
     state, scene_response = generate_scene(state)
 
     choice_a, choice_b, choice_c = get_choice_cards(scene_response)
@@ -107,7 +109,7 @@ def start_story(premise: str):
         choice_a,
         choice_b,
         choice_c,
-        "Choose one road to continue.",
+        f"Choose one road to continue. This story will end after {state['max_steps']} major choices.",
         gr.update(interactive=True),
         gr.update(interactive=True),
         gr.update(interactive=True),
@@ -163,7 +165,23 @@ def choose_path(choice_id: str, state: dict):
         state,
     )
 
-    state, scene_response = generate_scene(state, selected_choice=selected_text)
+    state, story_response = generate_scene(state, selected_choice=selected)
+
+    if isinstance(story_response, EndingResponse):
+        yield (
+            get_ending_markdown(story_response),
+            "",
+            "",
+            "",
+            "This road has reached its ending.",
+            gr.update(interactive=False),
+            gr.update(interactive=False),
+            gr.update(interactive=False),
+            state,
+        )
+        return
+
+    scene_response = story_response
     choice_a, choice_b, choice_c = get_choice_cards(scene_response)
 
     yield (
@@ -171,7 +189,7 @@ def choose_path(choice_id: str, state: dict):
         choice_a,
         choice_b,
         choice_c,
-        "Choose one road to continue.",
+        f"Choose one road to continue. {len(branch['chosen_decisions'])} of {state['max_steps']} choices made.",
         gr.update(interactive=True),
         gr.update(interactive=True),
         gr.update(interactive=True),
@@ -206,6 +224,22 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
             placeholder="A robotics engineer receives an offer that would change the rest of his life...",
             lines=4,
             scale=4,
+        )
+
+    with gr.Row():
+        mode = gr.Dropdown(
+            label="Story mode",
+            choices=["grounded", "strange", "cinematic"],
+            value="grounded",
+            scale=2,
+        )
+        max_steps = gr.Slider(
+            label="Major choices before ending",
+            minimum=5,
+            maximum=7,
+            step=1,
+            value=6,
+            scale=2,
         )
 
     start_button = gr.Button("Begin story", variant="primary")
@@ -247,7 +281,7 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
 
     start_button.click(
         fn=start_story,
-        inputs=[premise],
+        inputs=[premise, mode, max_steps],
         outputs=outputs,
         show_progress="full",
     )
