@@ -9,6 +9,8 @@ from story_engine import (
     create_initial_state,
     extract_json,
     generate_scene,
+    get_director_card,
+    get_director_context,
     parse_ending_response,
     parse_scene_response,
 )
@@ -93,6 +95,42 @@ class StoryEngineTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "choices must contain exactly"):
             SceneResponse.model_validate(broken)
+
+    def test_director_context_contains_mode_specific_external_events(self):
+        grounded = get_director_context(2, "grounded", 6)
+        strange = get_director_context(2, "strange", 6)
+        cinematic = get_director_context(2, "cinematic", 6)
+
+        self.assertIn("Required external event", grounded)
+        self.assertIn("parent or older relative's health declines", grounded)
+        self.assertIn("impossible pressure", strange)
+        self.assertIn("paths the protagonist did not choose", strange)
+        self.assertIn("public failure, investigation, accident, or betrayal", cinematic)
+        self.assertIn("Verticality rule", cinematic)
+
+    def test_generate_scene_prompt_includes_director_card(self):
+        captured_prompt = ""
+
+        def fake_generate_chat_response(messages, *args, **kwargs):
+            nonlocal captured_prompt
+            captured_prompt = messages[-1]["content"]
+            return scene_payload(0)
+
+        with patch.object(
+            story_engine,
+            "generate_chat_response",
+            fake_generate_chat_response,
+        ):
+            state = create_initial_state(
+                "A software engineer considers nuclear work in Stockholm.",
+                mode="strange",
+                max_steps=6,
+            )
+            generate_scene(state)
+
+        self.assertIn("Required external event", captured_prompt)
+        self.assertIn(get_director_card(0, "strange"), captured_prompt)
+        self.assertIn("At least one choice must risk permanent loss", captured_prompt)
 
     def test_initial_roads_not_taken_seed_the_ending(self):
         responses = iter(

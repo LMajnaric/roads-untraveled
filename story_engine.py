@@ -35,17 +35,48 @@ EMOTIONAL_POLARITIES = [
 
 MODE_DIRECTIONS = {
     "grounded": (
-        "Keep the story realistic and intimate. Drama should come from work, love, "
-        "family, health, money, place, identity, ambition, and time."
+        "Keep the story realistic and intimate. Drama should come from external "
+        "pressure: work, love, family, health, money, place, identity, ambition, "
+        "aging, children, grief, duty, and time."
     ),
     "strange": (
-        "Let one uncanny or surreal pressure bend the life path, while keeping the "
-        "emotional consequences human and coherent."
+        "Make the story genuinely uncanny. An impossible pressure should bend the "
+        "life path, while the emotional consequences stay human and coherent."
     ),
     "cinematic": (
         "Use bolder reversals, sharper images, and high-stakes turning points, but "
         "keep choices emotionally plausible rather than melodramatic."
     ),
+}
+
+EVENT_DECK: dict[StoryMode, list[str]] = {
+    "grounded": [
+        "A concrete offer or obligation forces the first fork to be about place, intimacy, work, and what cannot be carried along.",
+        "A close relationship asks for a commitment the protagonist cannot answer with career ambition alone.",
+        "A parent or older relative's health declines, forcing distance, duty, money, and denial into the story.",
+        "A family question becomes unavoidable: marriage, children, infertility, separation, caregiving, or the deliberate refusal of that life.",
+        "Career success creates a private cost: burnout, ethical compromise, missed years, damaged trust, or a home life that no longer waits.",
+        "Someone important is lost, leaves, or becomes unreachable, and the protagonist must live with the shape of that absence.",
+        "The ending must name what was gained and what ordinary life never recovered.",
+    ],
+    "strange": [
+        "The first fork has an impossible echo: one unchosen road leaves a physical trace in the chosen life.",
+        "A person from an unlived life recognizes the protagonist and remembers a promise never made here.",
+        "The city, home, or workplace begins preserving memories from paths the protagonist did not choose.",
+        "A future child, former lover, or dead parent from another branch appears through a mundane object, message, or recurring place.",
+        "The protagonist must trade one memory, relationship, or year of life to keep the chosen road stable.",
+        "One road not taken starts erasing evidence of the chosen life, forcing a moral choice about which self deserves to remain.",
+        "The ending must leave one impossible artifact behind, small enough to hold and too real to explain away.",
+    ],
+    "cinematic": [
+        "The first fork opens with a high-stakes opportunity whose public promise hides a private danger.",
+        "A mentor, rival, lover, or institution demands loyalty at a moment when refusal has consequences.",
+        "A public failure, investigation, accident, or betrayal damages the protagonist's reputation or safety.",
+        "A relationship breaks under pressure from ambition, secrecy, danger, distance, or a choice about family.",
+        "The protagonist must choose between visible success and protecting someone who may never forgive them.",
+        "A final reversal makes the earlier ambition look smaller, crueler, or more costly than it once seemed.",
+        "The ending must feel earned, not clean: triumph, isolation, sacrifice, or survival with a scar.",
+    ],
 }
 
 
@@ -230,9 +261,15 @@ def create_initial_state(
     }
 
 
+def get_director_card(decision_count: int, mode: StoryMode) -> str:
+    deck = EVENT_DECK[mode]
+    return deck[min(decision_count, len(deck) - 1)]
+
+
 def get_director_context(decision_count: int, mode: StoryMode, max_steps: int) -> str:
     beat_index = min(decision_count, len(DRAMATIC_BEATS) - 1)
     polarity = EMOTIONAL_POLARITIES[decision_count % len(EMOTIONAL_POLARITIES)]
+    director_card = get_director_card(decision_count, mode)
 
     if decision_count == 0:
         time_instruction = "Begin at the first major fork. The choices should be three incompatible life directions."
@@ -251,9 +288,12 @@ Story director:
 - Mode direction: {MODE_DIRECTIONS[mode]}
 - Dramatic beat: {DRAMATIC_BEATS[beat_index]}
 - Emotional polarity: {polarity}
+- Required external event: {director_card}
 - Story length target: {max_steps} major choices before the ending.
 - Time jump: {time_instruction}
 - Novelty rule: do not reuse the same life domain, emotional bargain, or choice shape unless it has clearly transformed.
+- Verticality rule: the required event must change family, body, home, legal status, reputation, moral identity, grief, or long-term belonging.
+- Do not soften the required event into background color. The scene and all three choices must respond to it.
 """
 
 
@@ -520,6 +560,8 @@ Choice design:
 - Make one choice open a promising cost.
 - Make one choice protect something meaningful while losing something else.
 - Make one choice introduce a surprising but plausible turn for the selected mode.
+- At least one choice must risk permanent loss.
+- At least one choice must be a response to the required external event, not a self-improvement activity.
 
 {SCENE_JSON_INSTRUCTIONS}
 """
