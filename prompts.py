@@ -23,7 +23,7 @@ Pacing rules:
 
 Style rules:
 - Write concise, emotionally plausible interactive fiction.
-- Avoid generic fantasy clichés unless the user asks for fantasy.
+- Avoid generic fantasy cliches unless the user asks for fantasy.
 - Keep scenes under 180 words.
 - Every choice should imply a meaningful life tradeoff.
 - Choices should not be obvious good/bad options.
@@ -73,4 +73,36 @@ No markdown.
 No explanation.
 No text before or after the JSON.
 Do not offer choices that go back to undo the previous decision.
+"""
+
+ENDING_JSON_INSTRUCTIONS = """
+Return exactly this JSON structure:
+
+{
+  "time_jump": "A clear final time jump, such as Twelve years later or Near the end of that decade.",
+  "final_scene": "The closing scene for the chosen life. Maximum 160 words. No unescaped double quotes.",
+  "chosen_life_summary": "Maximum 35 words summarizing the life the user actually lived.",
+  "alternate_lives": [
+    {
+      "source_choice": "The first unchosen choice this life began from.",
+      "title": "Maximum 6 words",
+      "summary": "A compact alternate-life story. Maximum 65 words.",
+      "emotional_aftertaste": "Maximum 4 words"
+    },
+    {
+      "source_choice": "The second first unchosen choice this life began from.",
+      "title": "Maximum 6 words",
+      "summary": "A compact alternate-life story. Maximum 65 words.",
+      "emotional_aftertaste": "Maximum 4 words"
+    }
+  ],
+  "memory_update": "Maximum 25 words summarizing where this road ended."
+}
+
+Important:
+Return valid JSON only.
+No markdown.
+No explanation.
+No text before or after the JSON.
+The alternate lives must be simulated from the two initial roads not taken, not from later unchosen choices.
 """
