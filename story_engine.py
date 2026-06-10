@@ -42,6 +42,7 @@ MODE_DIRECTIONS = {
     "strange": (
         "Make the story genuinely uncanny. An impossible pressure should bend the "
         "life path, while the emotional consequences stay human and coherent."
+        "Events such as global pandemics, world wars, AGI, or alien discovery."
     ),
     "cinematic": (
         "Use bolder reversals, sharper images, and high-stakes turning points, but "
