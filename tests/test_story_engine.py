@@ -71,6 +71,23 @@ def ending_payload() -> str:
                     "emotional_aftertaste": "warm regret",
                 },
             ],
+            "road_conversation": [
+                {
+                    "speaker": "The lived road",
+                    "source": "chosen",
+                    "line": "I kept the door I could bear to close.",
+                },
+                {
+                    "speaker": "The research life",
+                    "source": "untaken_1",
+                    "line": "I became distance, but distance became a language.",
+                },
+                {
+                    "speaker": "The near life",
+                    "source": "untaken_2",
+                    "line": "I stayed close enough to lose different things.",
+                },
+            ],
             "memory_update": "The chosen road ended.",
         }
     )
@@ -88,6 +105,27 @@ class StoryEngineTests(unittest.TestCase):
         self.assertEqual([choice.id for choice in scene.choices], ["A", "B", "C"])
         self.assertIsInstance(ending, EndingResponse)
         self.assertEqual(len(ending.alternate_lives), 2)
+        self.assertEqual(len(ending.road_conversation), 3)
+
+    def test_create_initial_state_stores_ending_tone(self):
+        state = create_initial_state(
+            "A life begins.",
+            mode="cinematic",
+            max_steps=6,
+            ending_tone="direct",
+        )
+
+        self.assertEqual(state["ending_tone"], "direct")
+
+    def test_unknown_ending_tone_defaults_to_poetic(self):
+        state = create_initial_state(
+            "A life begins.",
+            mode="grounded",
+            max_steps=6,
+            ending_tone="loud",
+        )
+
+        self.assertEqual(state["ending_tone"], "poetic")
 
     def test_scene_validation_requires_ordered_abc_choices(self):
         broken = json.loads(scene_payload(1))
@@ -95,6 +133,13 @@ class StoryEngineTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "choices must contain exactly"):
             SceneResponse.model_validate(broken)
+
+    def test_ending_validation_requires_ordered_road_conversation(self):
+        broken = json.loads(ending_payload())
+        broken["road_conversation"][1]["source"] = "chosen"
+
+        with self.assertRaisesRegex(ValueError, "road_conversation must contain"):
+            EndingResponse.model_validate(broken)
 
     def test_director_context_contains_mode_specific_external_events(self):
         grounded = get_director_context(2, "grounded", 6)
@@ -131,6 +176,53 @@ class StoryEngineTests(unittest.TestCase):
         self.assertIn("Required external event", captured_prompt)
         self.assertIn(get_director_card(0, "strange"), captured_prompt)
         self.assertIn("At least one choice must risk permanent loss", captured_prompt)
+
+    def test_generate_ending_prompt_includes_ending_tone(self):
+        captured_prompt = ""
+
+        def fake_generate_chat_response(messages, *args, **kwargs):
+            nonlocal captured_prompt
+            captured_prompt = messages[-1]["content"]
+            return ending_payload()
+
+        state = create_initial_state(
+            "A software engineer considers nuclear work in Stockholm.",
+            mode="strange",
+            max_steps=5,
+            ending_tone="weird",
+        )
+        state["initial_chosen_choice"] = "B: Have Children - Stay near family."
+        state["initial_roads_not_taken"] = [
+            {
+                "id": "A",
+                "label": "Move to USA",
+                "tone": "ambitious",
+                "preview": "Build a research life.",
+            },
+            {
+                "id": "C",
+                "label": "Stay Local",
+                "tone": "rooted",
+                "preview": "Keep old roots close.",
+            },
+        ]
+        branch = state["branches"]["main"]
+        branch["chosen_decisions"] = ["B: Have Children - Stay near family."]
+
+        with patch.object(
+            story_engine,
+            "generate_chat_response",
+            fake_generate_chat_response,
+        ):
+            story_engine.generate_ending(
+                state,
+                branch,
+                "A: Final Choice - Accept the cost.",
+            )
+
+        self.assertIn("Ending conversation tone:\nweird", captured_prompt)
+        self.assertIn("chosen, untaken_1, untaken_2", captured_prompt)
+        self.assertIn("weird is uncanny and playful", captured_prompt)
 
     def test_initial_roads_not_taken_seed_the_ending(self):
         responses = iter(

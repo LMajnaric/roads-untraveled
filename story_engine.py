@@ -8,6 +8,7 @@ from prompts import ENDING_JSON_INSTRUCTIONS, SCENE_JSON_INSTRUCTIONS, SYSTEM_PR
 
 
 StoryMode = Literal["grounded", "strange", "cinematic"]
+EndingTone = Literal["poetic", "weird", "direct"]
 
 DEFAULT_MAX_STEPS = 6
 MIN_STEPS = 5
@@ -67,7 +68,7 @@ EVENT_DECK: dict[StoryMode, list[str]] = {
         "A future child, former lover, or dead parent from another branch appears through a mundane object, message, or recurring place.",
         "The protagonist must trade one memory, relationship, or year of life to keep the chosen road stable.",
         "One road not taken starts erasing evidence of the chosen life, forcing a moral choice about which self deserves to remain.",
-        "The ending must leave one impossible artifact behind, small enough to hold and too real to explain away.",
+        "The ending must leave one impossible artifact behind, small enough to hold and too real to explain away, untaken roads equally uncanny.",
     ],
     "cinematic": [
         "The first fork opens with a high-stakes opportunity whose public promise hides a private danger.",
@@ -109,12 +110,28 @@ class AlternateLife(BaseModel):
     emotional_aftertaste: str
 
 
+class RoadConversationLine(BaseModel):
+    speaker: str
+    source: Literal["chosen", "untaken_1", "untaken_2"]
+    line: str
+
+
 class EndingResponse(BaseModel):
     time_jump: str
     final_scene: str
     chosen_life_summary: str
     alternate_lives: list[AlternateLife] = Field(min_length=2, max_length=2)
+    road_conversation: list[RoadConversationLine] = Field(min_length=3, max_length=3)
     memory_update: str
+
+    @model_validator(mode="after")
+    def require_ordered_road_conversation(self) -> "EndingResponse":
+        sources = [line.source for line in self.road_conversation]
+        if sources != ["chosen", "untaken_1", "untaken_2"]:
+            raise ValueError(
+                "road_conversation must contain chosen, untaken_1, and untaken_2 in order"
+            )
+        return self
 
 
 StoryResponse = SceneResponse | EndingResponse
@@ -133,6 +150,12 @@ def normalize_mode(mode: str | None) -> StoryMode:
     if mode in MODE_DIRECTIONS:
         return mode  # type: ignore[return-value]
     return "grounded"
+
+
+def normalize_ending_tone(ending_tone: str | None) -> EndingTone:
+    if ending_tone in {"poetic", "weird", "direct"}:
+        return ending_tone  # type: ignore[return-value]
+    return "poetic"
 
 
 def choice_to_text(choice: dict[str, Any] | str | None) -> str:
@@ -238,10 +261,12 @@ def create_initial_state(
     premise: str,
     mode: str | None = "grounded",
     max_steps: int | float | str | None = DEFAULT_MAX_STEPS,
+    ending_tone: str | None = "poetic",
 ) -> dict:
     return {
         "premise": premise,
         "mode": normalize_mode(mode),
+        "ending_tone": normalize_ending_tone(ending_tone),
         "max_steps": clamp_max_steps(max_steps),
         "active_branch": "main",
         "initial_choices": [],
@@ -399,6 +424,12 @@ def get_ending_markdown(ending_response: EndingResponse) -> str:
             for life in ending_response.alternate_lives
         ]
     )
+    road_conversation = "\n\n".join(
+        [
+            f"**{line.speaker}:** {line.line}"
+            for line in ending_response.road_conversation
+        ]
+    )
 
     return f"""
 ### {ending_response.time_jump}
@@ -416,6 +447,12 @@ def get_ending_markdown(ending_response: EndingResponse) -> str:
 ## Roads not taken
 
 {alternate_lives}
+
+---
+
+## When the roads speak
+
+{road_conversation}
 """
 
 
@@ -441,6 +478,7 @@ def generate_ending(
     selected_text: str,
 ) -> tuple[dict, EndingResponse]:
     mode = normalize_mode(state.get("mode"))
+    ending_tone = normalize_ending_tone(state.get("ending_tone"))
     max_steps = clamp_max_steps(state.get("max_steps"))
     decision_count = len(branch["chosen_decisions"])
     director_context = get_director_context(decision_count, mode, max_steps)
@@ -467,15 +505,20 @@ Recent scene:
 Final selected choice:
 {selected_text}
 
+Ending conversation tone:
+{ending_tone}
+
 {director_context}
 
 Task:
-End the chosen life path. Then simulate exactly two miniature alternate lives, each based only on one of the two initial roads not taken.
+End the chosen life path. Then simulate exactly two miniature alternate lives, each based only on one of the two initial roads not taken. Finally, write a three-line conversation where the lived road and the two initial roads not taken briefly speak to each other.
 
 Rules:
 - Do not use later unchosen choices as alternate-life seeds.
 - The alternate lives should feel coherent from the initial fork, not related to later choices in the chosen road.
 - Give every life beauty and loss.
+- The road conversation must contain exactly 3 short lines in this order: chosen, untaken_1, untaken_2.
+- Match the road conversation tone: poetic is lyrical and restrained, weird is uncanny and playful, direct is plainspoken and piercing.
 - Do not provide new choices.
 
 {ENDING_JSON_INSTRUCTIONS}

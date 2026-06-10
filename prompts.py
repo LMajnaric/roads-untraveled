@@ -96,6 +96,23 @@ Return exactly this JSON structure:
       "emotional_aftertaste": "Maximum 4 words"
     }
   ],
+  "road_conversation": [
+    {
+      "speaker": "The lived road",
+      "source": "chosen",
+      "line": "Maximum 18 words"
+    },
+    {
+      "speaker": "The first road not taken",
+      "source": "untaken_1",
+      "line": "Maximum 18 words"
+    },
+    {
+      "speaker": "The second road not taken",
+      "source": "untaken_2",
+      "line": "Maximum 18 words"
+    }
+  ],
   "memory_update": "Maximum 25 words summarizing where this road ended."
 }
 
@@ -105,4 +122,5 @@ No markdown.
 No explanation.
 No text before or after the JSON.
 The alternate lives must be simulated from the two initial roads not taken, not from later unchosen choices.
+The road_conversation array must contain exactly 3 lines from chosen, untaken_1, and untaken_2.
 """

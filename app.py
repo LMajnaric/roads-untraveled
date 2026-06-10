@@ -72,7 +72,7 @@ def get_choice_cards(scene_response):
     )
 
 
-def start_story(premise: str, mode: str, max_steps: int):
+def start_story(premise: str, mode: str, max_steps: int, ending_tone: str):
     if not premise.strip():
         yield (
             "Please enter a premise first.",
@@ -99,7 +99,12 @@ def start_story(premise: str, mode: str, max_steps: int):
         None,
     )
 
-    state = create_initial_state(premise, mode=mode, max_steps=max_steps)
+    state = create_initial_state(
+        premise,
+        mode=mode,
+        max_steps=max_steps,
+        ending_tone=ending_tone,
+    )
     state, scene_response = generate_scene(state)
 
     choice_a, choice_b, choice_c = get_choice_cards(scene_response)
@@ -241,6 +246,12 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
             value=6,
             scale=2,
         )
+        ending_tone = gr.Dropdown(
+            label="Ending conversation",
+            choices=["poetic", "weird", "direct"],
+            value="poetic",
+            scale=2,
+        )
 
     start_button = gr.Button("Begin story", variant="primary")
 
@@ -281,7 +292,7 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
 
     start_button.click(
         fn=start_story,
-        inputs=[premise, mode, max_steps],
+        inputs=[premise, mode, max_steps, ending_tone],
         outputs=outputs,
         show_progress="full",
     )
