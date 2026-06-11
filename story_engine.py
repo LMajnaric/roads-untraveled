@@ -111,6 +111,7 @@ class SceneResponse(BaseModel):
 class AlternateLife(BaseModel):
     source_choice: str
     title: str
+    turning_points: list[str] = Field(min_length=3, max_length=3)
     summary: str
     emotional_aftertaste: str
 
@@ -663,6 +664,10 @@ End the chosen life path. Then simulate exactly two miniature alternate lives, e
 Rules:
 - Do not use later unchosen choices as alternate-life seeds.
 - The alternate lives should feel coherent from the initial fork, not related to later choices in the chosen road.
+- Give each alternate life exactly 3 hidden turning points.
+- Each hidden turning point must be a major life event and maximum 12 words.
+- Synthesize the hidden turning points in each alternate-life summary.
+- Do not write full scenes for untaken roads.
 - Give every life beauty and loss.
 - The road conversation must contain exactly 3 short lines in this order: chosen, untaken_1, untaken_2.
 - Match the road conversation tone: poetic is lyrical and restrained, weird is uncanny and playful, direct is plainspoken and piercing.

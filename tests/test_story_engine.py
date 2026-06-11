@@ -13,6 +13,7 @@ from story_engine import (
     generate_scene,
     get_director_card,
     get_director_context,
+    get_ending_markdown,
     parse_ending_response,
     parse_scene_response,
 )
@@ -63,12 +64,22 @@ def ending_payload() -> str:
                 {
                     "source_choice": "A: Move to USA - Build a research life.",
                     "title": "The Research Life",
+                    "turning_points": [
+                        "Won a fellowship in Boston.",
+                        "Chose tenure over coming home.",
+                        "Ended a marriage beside packed boxes.",
+                    ],
                     "summary": "The PhD became a new country, a new language, and a narrower kind of freedom.",
                     "emotional_aftertaste": "proud ache",
                 },
                 {
                     "source_choice": "C: Stay Local - Keep old roots close.",
                     "title": "The Near Life",
+                    "turning_points": [
+                        "Refused a job across the sea.",
+                        "Nursed his father through winter.",
+                        "Inherited the apartment and its silence.",
+                    ],
                     "summary": "Staying made family ordinary and precious, while ambition learned a smaller room.",
                     "emotional_aftertaste": "warm regret",
                 },
@@ -137,8 +148,34 @@ class StoryEngineTests(unittest.TestCase):
         self.assertEqual([choice.id for choice in scene.choices], ["A", "B", "C"])
         self.assertIsInstance(ending, EndingResponse)
         self.assertEqual(len(ending.alternate_lives), 2)
+        self.assertEqual(len(ending.alternate_lives[0].turning_points), 3)
         self.assertEqual(len(ending.road_conversation), 3)
         self.assertEqual(road_answer.source, "untaken_1")
+
+    def test_ending_validation_requires_three_turning_points(self):
+        missing = json.loads(ending_payload())
+        del missing["alternate_lives"][0]["turning_points"]
+
+        with self.assertRaises(ValueError):
+            EndingResponse.model_validate(missing)
+
+        too_few = json.loads(ending_payload())
+        too_few["alternate_lives"][0]["turning_points"] = [
+            "Won a fellowship in Boston.",
+            "Chose tenure over coming home.",
+        ]
+
+        with self.assertRaises(ValueError):
+            EndingResponse.model_validate(too_few)
+
+    def test_ending_markdown_hides_turning_points(self):
+        ending = parse_ending_response(ending_payload())
+        markdown = get_ending_markdown(ending)
+
+        self.assertIn("The Research Life", markdown)
+        self.assertIn("The PhD became a new country", markdown)
+        self.assertNotIn("Won a fellowship in Boston", markdown)
+        self.assertNotIn("Nursed his father through winter", markdown)
 
     def test_create_initial_state_stores_ending_tone(self):
         state = create_initial_state(
@@ -256,6 +293,9 @@ class StoryEngineTests(unittest.TestCase):
         self.assertIn("Ending conversation tone:\nweird", captured_prompt)
         self.assertIn("chosen, untaken_1, untaken_2", captured_prompt)
         self.assertIn("weird is uncanny and playful", captured_prompt)
+        self.assertIn("exactly 3 hidden turning points", captured_prompt)
+        self.assertIn("maximum 12 words", captured_prompt)
+        self.assertIn("Do not write full scenes for untaken roads", captured_prompt)
 
     def test_answer_untaken_road_question_rejects_invalid_state(self):
         with self.assertRaisesRegex(ValueError, "No ending"):
@@ -320,6 +360,7 @@ class StoryEngineTests(unittest.TestCase):
         self.assertIn("source: untaken_1", captured_prompt)
         self.assertIn("Were you happier than me?", captured_prompt)
         self.assertIn("The Near Life", captured_prompt)
+        self.assertIn("Won a fellowship in Boston", captured_prompt)
         self.assertIn("I kept the door I could bear to close.", captured_prompt)
         self.assertIn("Ending tone:\ndirect", captured_prompt)
 

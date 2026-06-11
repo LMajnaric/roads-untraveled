@@ -86,12 +86,22 @@ Return exactly this JSON structure:
     {
       "source_choice": "The first unchosen choice this life began from.",
       "title": "Maximum 6 words",
+      "turning_points": [
+        "Major life event. Maximum 12 words.",
+        "Major life event. Maximum 12 words.",
+        "Major life event. Maximum 12 words."
+      ],
       "summary": "A compact alternate-life story. Maximum 65 words.",
       "emotional_aftertaste": "Maximum 4 words"
     },
     {
       "source_choice": "The second first unchosen choice this life began from.",
       "title": "Maximum 6 words",
+      "turning_points": [
+        "Major life event. Maximum 12 words.",
+        "Major life event. Maximum 12 words.",
+        "Major life event. Maximum 12 words."
+      ],
       "summary": "A compact alternate-life story. Maximum 65 words.",
       "emotional_aftertaste": "Maximum 4 words"
     }
@@ -122,6 +132,10 @@ No markdown.
 No explanation.
 No text before or after the JSON.
 The alternate lives must be simulated from the two initial roads not taken, not from later unchosen choices.
+Each alternate life must include exactly 3 hidden turning_points.
+Each turning point must be a major life event and maximum 12 words.
+The alternate-life summary should synthesize the turning_points, not ignore them.
+Do not generate full scenes for untaken roads.
 The road_conversation array must contain exactly 3 lines from chosen, untaken_1, and untaken_2.
 """
 
