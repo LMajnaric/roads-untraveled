@@ -109,6 +109,12 @@ class AppTests(unittest.TestCase):
             create_initial_state("A premise.")["custom_choices_enabled"]
         )
 
+    def test_road_question_outputs_keep_known_good_positions(self):
+        self.assertIs(app.outputs[9], app.road_question_header)
+        self.assertIs(app.outputs[11], app.road_1_question)
+        self.assertIs(app.outputs[15], app.road_2_question)
+        self.assertIs(app.outputs[18], app.custom_choice_header)
+
     def test_custom_controls_hidden_until_enabled_after_initial_choice(self):
         self.assertFalse(app.should_show_custom_choice(None))
         self.assertFalse(app.should_show_custom_choice(active_custom_state(False)))
@@ -181,7 +187,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(captured["selected_choice"]["id"], "D")
         self.assertEqual(captured["selected_choice"]["tone"], "self-authored")
         self.assertIn("The custom road has consequences.", final_update[0])
-        self.assertTrue(final_update[10]["visible"])
+        self.assertTrue(final_update[18]["visible"])
 
     def test_invalid_custom_choice_preserves_current_scene(self):
         state = active_custom_state(True)
@@ -200,7 +206,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(result[0], "Current story")
         self.assertEqual(result[1], "A card")
         self.assertIn("at least 20", result[4])
-        self.assertEqual(result[10]["value"], "Too short")
+        self.assertEqual(result[19]["value"], "Too short")
 
     def test_ask_second_untaken_road_uses_second_source(self):
         state = app_ended_state()

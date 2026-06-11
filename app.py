@@ -244,8 +244,8 @@ def start_story(
             gr.update(interactive=False),
             gr.update(interactive=False),
             None,
-            *get_hidden_custom_choice_outputs(),
             *get_hidden_road_question_outputs(),
+            *get_hidden_custom_choice_outputs(),
         )
         return
 
@@ -259,8 +259,8 @@ def start_story(
         gr.update(interactive=False),
         gr.update(interactive=False),
         None,
-        *get_hidden_custom_choice_outputs(),
         *get_hidden_road_question_outputs(),
+        *get_hidden_custom_choice_outputs(),
     )
 
     state = create_initial_state(
@@ -284,8 +284,8 @@ def start_story(
         gr.update(interactive=True),
         gr.update(interactive=True),
         state,
-        *get_custom_choice_outputs(state),
         *get_hidden_road_question_outputs(),
+        *get_custom_choice_outputs(state),
     )
 
 
@@ -301,8 +301,8 @@ def choose_path(choice_id: str, state: dict):
             gr.update(interactive=False),
             gr.update(interactive=False),
             state,
-            *get_hidden_custom_choice_outputs(),
             *get_hidden_road_question_outputs(),
+            *get_hidden_custom_choice_outputs(),
         )
         return
 
@@ -320,8 +320,8 @@ def choose_path(choice_id: str, state: dict):
             "Choice error.",
             *active_choice_buttons(state),
             state,
-            *get_custom_choice_outputs(state),
             *get_hidden_road_question_outputs(),
+            *get_custom_choice_outputs(state),
         )
         return
 
@@ -341,8 +341,8 @@ def continue_from_selection(state: dict, selected: dict):
         gr.update(interactive=False),
         gr.update(interactive=False),
         state,
-        *get_hidden_custom_choice_outputs(),
         *get_hidden_road_question_outputs(),
+        *get_hidden_custom_choice_outputs(),
     )
 
     state, story_response = generate_scene(state, selected_choice=selected)
@@ -358,8 +358,8 @@ def continue_from_selection(state: dict, selected: dict):
             gr.update(interactive=False),
             gr.update(interactive=False),
             state,
-            *get_hidden_custom_choice_outputs(),
             *get_road_question_outputs_for_ending(story_response),
+            *get_hidden_custom_choice_outputs(),
         )
         return
 
@@ -377,8 +377,8 @@ def continue_from_selection(state: dict, selected: dict):
         gr.update(interactive=True),
         gr.update(interactive=True),
         state,
-        *get_custom_choice_outputs(state),
         *get_hidden_road_question_outputs(),
+        *get_custom_choice_outputs(state),
     )
 
 
@@ -401,8 +401,8 @@ def choose_custom_path(
             gr.update(interactive=False),
             gr.update(interactive=False),
             state,
-            *get_hidden_custom_choice_outputs(),
             *get_hidden_road_question_outputs(),
+            *get_hidden_custom_choice_outputs(),
         )
         return
 
@@ -415,8 +415,8 @@ def choose_custom_path(
             "Custom choices are not available for this story yet.",
             *active_choice_buttons(state),
             state,
-            *get_custom_choice_outputs(state, custom_choice),
             *get_hidden_road_question_outputs(),
+            *get_custom_choice_outputs(state, custom_choice),
         )
         return
 
@@ -430,8 +430,8 @@ def choose_custom_path(
             error,
             *active_choice_buttons(state),
             state,
-            *get_custom_choice_outputs(state, custom_choice),
             *get_hidden_road_question_outputs(),
+            *get_custom_choice_outputs(state, custom_choice),
         )
         return
 
@@ -452,6 +452,8 @@ def choose_c(state):
 
 
 def ask_untaken_road(source: str, question: str, state: dict):
+    print(f"Road question submitted: source={source}, chars={len(question.strip())}")
+
     if state is None:
         yield (
             gr.update(interactive=False),
@@ -621,9 +623,6 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
         choice_b_button,
         choice_c_button,
         state,
-        custom_choice_header,
-        custom_choice_text,
-        custom_choice_button,
         road_question_header,
         road_1_title,
         road_1_question,
@@ -633,6 +632,9 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
         road_2_question,
         road_2_button,
         road_2_answer,
+        custom_choice_header,
+        custom_choice_text,
+        custom_choice_button,
     ]
 
     start_button.click(
