@@ -73,6 +73,30 @@ def get_choice_cards(scene_response):
     )
 
 
+def show_roads_ahead_header():
+    return gr.update(value="## Roads ahead", visible=True)
+
+
+def hide_roads_ahead_header():
+    return gr.update(value="", visible=False)
+
+
+def visible_choice_card(value: str):
+    return gr.update(value=value, visible=True)
+
+
+def hidden_choice_card():
+    return gr.update(value="", visible=False)
+
+
+def choice_button(interactive: bool):
+    return gr.update(visible=True, interactive=interactive)
+
+
+def hidden_choice_button():
+    return gr.update(visible=False, interactive=False)
+
+
 def get_hidden_road_question_outputs():
     return (
         gr.update(value="", visible=False),
@@ -136,13 +160,14 @@ def start_story(premise: str, mode: str, max_steps: int, ending_tone: str):
     if not premise.strip():
         yield (
             "Please enter a premise first.",
+            hide_roads_ahead_header(),
             "",
             "",
             "",
             "Nothing generated yet.",
-            gr.update(interactive=False),
-            gr.update(interactive=False),
-            gr.update(interactive=False),
+            hidden_choice_button(),
+            hidden_choice_button(),
+            hidden_choice_button(),
             None,
             *get_hidden_road_question_outputs(),
         )
@@ -150,13 +175,14 @@ def start_story(premise: str, mode: str, max_steps: int, ending_tone: str):
 
     yield (
         "Generating the first road...",
-        "",
-        "",
-        "",
+        hide_roads_ahead_header(),
+        hidden_choice_card(),
+        hidden_choice_card(),
+        hidden_choice_card(),
         "The model is writing. Local or remote inference can be slow.",
-        gr.update(interactive=False),
-        gr.update(interactive=False),
-        gr.update(interactive=False),
+        hidden_choice_button(),
+        hidden_choice_button(),
+        hidden_choice_button(),
         None,
         *get_hidden_road_question_outputs(),
     )
@@ -173,13 +199,14 @@ def start_story(premise: str, mode: str, max_steps: int, ending_tone: str):
 
     yield (
         get_scene_markdown(scene_response),
-        choice_a,
-        choice_b,
-        choice_c,
+        show_roads_ahead_header(),
+        visible_choice_card(choice_a),
+        visible_choice_card(choice_b),
+        visible_choice_card(choice_c),
         f"Choose one road to continue. This story will end after {state['max_steps']} major choices.",
-        gr.update(interactive=True),
-        gr.update(interactive=True),
-        gr.update(interactive=True),
+        choice_button(interactive=True),
+        choice_button(interactive=True),
+        choice_button(interactive=True),
         state,
         *get_hidden_road_question_outputs(),
     )
@@ -189,13 +216,14 @@ def choose_path(choice_id: str, state: dict):
     if state is None:
         yield (
             "Start a story first.",
-            "",
-            "",
-            "",
+            hide_roads_ahead_header(),
+            hidden_choice_card(),
+            hidden_choice_card(),
+            hidden_choice_card(),
             "No active story.",
-            gr.update(interactive=False),
-            gr.update(interactive=False),
-            gr.update(interactive=False),
+            hidden_choice_button(),
+            hidden_choice_button(),
+            hidden_choice_button(),
             state,
             *get_hidden_road_question_outputs(),
         )
@@ -209,13 +237,14 @@ def choose_path(choice_id: str, state: dict):
     if selected is None:
         yield (
             "That choice does not exist for the current scene.",
-            "",
-            "",
-            "",
+            show_roads_ahead_header(),
+            hidden_choice_card(),
+            hidden_choice_card(),
+            hidden_choice_card(),
             "Choice error.",
-            gr.update(interactive=True),
-            gr.update(interactive=True),
-            gr.update(interactive=True),
+            hidden_choice_button(),
+            hidden_choice_button(),
+            hidden_choice_button(),
             state,
             *get_hidden_road_question_outputs(),
         )
@@ -225,13 +254,14 @@ def choose_path(choice_id: str, state: dict):
 
     yield (
         f"Continuing from **{selected_text}**...",
-        "",
-        "",
-        "",
+        hide_roads_ahead_header(),
+        hidden_choice_card(),
+        hidden_choice_card(),
+        hidden_choice_card(),
         "The model is generating the next branch.",
-        gr.update(interactive=False),
-        gr.update(interactive=False),
-        gr.update(interactive=False),
+        hidden_choice_button(),
+        hidden_choice_button(),
+        hidden_choice_button(),
         state,
         *get_hidden_road_question_outputs(),
     )
@@ -241,13 +271,14 @@ def choose_path(choice_id: str, state: dict):
     if isinstance(story_response, EndingResponse):
         yield (
             get_ending_markdown(story_response),
-            "",
-            "",
-            "",
+            hide_roads_ahead_header(),
+            hidden_choice_card(),
+            hidden_choice_card(),
+            hidden_choice_card(),
             "This road has reached its ending.",
-            gr.update(interactive=False),
-            gr.update(interactive=False),
-            gr.update(interactive=False),
+            hidden_choice_button(),
+            hidden_choice_button(),
+            hidden_choice_button(),
             state,
             *get_road_question_outputs_for_ending(story_response),
         )
@@ -258,13 +289,14 @@ def choose_path(choice_id: str, state: dict):
 
     yield (
         get_scene_markdown(scene_response),
-        choice_a,
-        choice_b,
-        choice_c,
+        show_roads_ahead_header(),
+        visible_choice_card(choice_a),
+        visible_choice_card(choice_b),
+        visible_choice_card(choice_c),
         f"Choose one road to continue. {len(branch['chosen_decisions'])} of {state['max_steps']} choices made.",
-        gr.update(interactive=True),
-        gr.update(interactive=True),
-        gr.update(interactive=True),
+        choice_button(interactive=True),
+        choice_button(interactive=True),
+        choice_button(interactive=True),
         state,
         *get_hidden_road_question_outputs(),
     )
@@ -384,7 +416,7 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
         elem_classes=["story-box"],
     )
 
-    gr.Markdown("## Roads ahead")
+    roads_ahead_header = gr.Markdown("## Roads ahead")
 
     with gr.Row():
         with gr.Column():
@@ -426,6 +458,7 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
 
     outputs = [
         story_output,
+        roads_ahead_header,
         choice_a_card,
         choice_b_card,
         choice_c_card,
