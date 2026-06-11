@@ -370,7 +370,7 @@ def ask_untaken_2(question: str, state: dict):
 with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
     gr.Markdown("# Roads Untraveled", elem_id="main-title")
     gr.Markdown(
-        "Choose one path. The others still echo.",
+        "Weep not for roads untraveled, weep not for sights unseen, cause beyond every bend is a long blinding end, it's the worst kind of pain I've known",
         elem_id="subtitle",
     )
 
