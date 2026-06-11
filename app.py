@@ -47,6 +47,8 @@ CSS = """
 }
 """
 
+ROAD_QUESTION_SOURCES = ("untaken_1", "untaken_2")
+
 
 def choice_to_markdown(choice: dict) -> str:
     return f"""
@@ -100,24 +102,81 @@ def hidden_choice_button():
 def get_hidden_road_question_outputs():
     return (
         gr.update(value="", visible=False),
-        gr.update(value="", visible=False),
+        gr.update(choices=[], value=None, visible=False, interactive=False),
         gr.update(value="", visible=False, interactive=False),
         gr.update(value="Ask", visible=False, interactive=False),
         gr.update(value="", visible=False),
         gr.update(value="", visible=False),
-        gr.update(value="", visible=False, interactive=False),
-        gr.update(value="Ask", visible=False, interactive=False),
         gr.update(value="", visible=False),
     )
 
 
+def road_choice_label(source: str, title: str) -> str:
+    return f"{source}: {title}"
+
+
+def parse_road_question_source(selection: str | None) -> str:
+    if not selection:
+        raise ValueError("Choose a road to ask.")
+
+    for source in ROAD_QUESTION_SOURCES:
+        if selection == source or selection.startswith(f"{source}:"):
+            return source
+
+    raise ValueError("Choose a road to ask.")
+
+
+def get_available_road_question_choices(state: dict | None) -> list[str]:
+    if not state or not state.get("ending"):
+        return []
+
+    ending_response = EndingResponse.model_validate(state["ending"])
+    road_questions = state.get("road_questions", {})
+    choices = []
+
+    for index, source in enumerate(ROAD_QUESTION_SOURCES):
+        if not road_questions.get(source, {}).get("used"):
+            choices.append(
+                road_choice_label(source, ending_response.alternate_lives[index].title)
+            )
+
+    return choices
+
+
+def get_stored_road_answer(state: dict | None, source: str) -> str:
+    if not state:
+        return ""
+
+    answer = (
+        state.get("road_questions", {})
+        .get(source, {})
+        .get("answer")
+    )
+    if not answer:
+        return ""
+
+    return f"""
+### {answer["speaker"]}
+
+{answer["answer"]}
+"""
+
+
 def get_road_question_outputs_for_ending(ending_response: EndingResponse):
-    first_road = ending_response.alternate_lives[0]
-    second_road = ending_response.alternate_lives[1]
+    choices = [
+        road_choice_label("untaken_1", ending_response.alternate_lives[0].title),
+        road_choice_label("untaken_2", ending_response.alternate_lives[1].title),
+    ]
 
     return (
         gr.update(value="## Ask the roads not taken", visible=True),
-        gr.update(value=f"### Ask {first_road.title}", visible=True),
+        gr.update(
+            label="Road to ask",
+            choices=choices,
+            value=choices[0],
+            visible=True,
+            interactive=True,
+        ),
         gr.update(
             label="Your question",
             placeholder="What did you have that I lost?",
@@ -126,34 +185,14 @@ def get_road_question_outputs_for_ending(ending_response: EndingResponse):
             interactive=True,
         ),
         gr.update(
-            value=f"Ask {first_road.title}",
+            value="Ask this road",
             visible=True,
             interactive=True,
         ),
         gr.update(value="", visible=True),
-        gr.update(value=f"### Ask {second_road.title}", visible=True),
-        gr.update(
-            label="Your question",
-            placeholder="Were you happier than me?",
-            value="",
-            visible=True,
-            interactive=True,
-        ),
-        gr.update(
-            value=f"Ask {second_road.title}",
-            visible=True,
-            interactive=True,
-        ),
+        gr.update(value="", visible=True),
         gr.update(value="", visible=True),
     )
-
-
-def format_road_answer(response) -> str:
-    return f"""
-### {response.speaker}
-
-{response.answer}
-"""
 
 
 def start_story(premise: str, mode: str, max_steps: int, ending_tone: str):
@@ -314,57 +353,96 @@ def choose_c(state):
     yield from choose_path("C", state)
 
 
-def ask_untaken_road(source: str, question: str, state: dict):
+def ask_selected_untaken_road(selection: str, question: str, state: dict):
+    road_1_answer = get_stored_road_answer(state, "untaken_1")
+    road_2_answer = get_stored_road_answer(state, "untaken_2")
+    choices = get_available_road_question_choices(state)
+    selected_choice = (
+        selection if selection in choices else (choices[0] if choices else None)
+    )
+
     if state is None:
         yield (
-            gr.update(interactive=False),
+            gr.update(choices=[], value=None, interactive=False),
+            gr.update(value="", interactive=False),
             gr.update(interactive=False),
             "Start and finish a story first.",
+            road_1_answer,
+            road_2_answer,
+            state,
+        )
+        return
+
+    try:
+        source = parse_road_question_source(selection)
+    except ValueError as e:
+        yield (
+            gr.update(choices=choices, value=selected_choice, interactive=bool(choices)),
+            gr.update(value=question, interactive=bool(choices)),
+            gr.update(interactive=bool(choices)),
+            str(e),
+            road_1_answer,
+            road_2_answer,
             state,
         )
         return
 
     if not question.strip():
         yield (
-            gr.update(interactive=True),
+            gr.update(choices=choices, value=selected_choice, interactive=True),
+            gr.update(value=question, interactive=True),
             gr.update(interactive=True),
             "Ask this road a question first.",
+            road_1_answer,
+            road_2_answer,
             state,
         )
         return
 
     yield (
-        gr.update(interactive=False),
+        gr.update(choices=choices, value=selected_choice, interactive=False),
+        gr.update(value=question, interactive=False),
         gr.update(interactive=False),
         "The road is answering...",
+        road_1_answer,
+        road_2_answer,
         state,
     )
 
     try:
         state, response = answer_untaken_road_question(state, source, question)
     except ValueError as e:
+        choices = get_available_road_question_choices(state)
+        selected_choice = (
+            selection if selection in choices else (choices[0] if choices else None)
+        )
         yield (
-            gr.update(interactive=False),
-            gr.update(interactive=False),
+            gr.update(choices=choices, value=selected_choice, interactive=bool(choices)),
+            gr.update(value=question, interactive=bool(choices)),
+            gr.update(interactive=bool(choices)),
             str(e),
+            get_stored_road_answer(state, "untaken_1"),
+            get_stored_road_answer(state, "untaken_2"),
             state,
         )
         return
 
+    choices = get_available_road_question_choices(state)
+    next_choice = choices[0] if choices else None
+    has_choices = bool(choices)
+    road_1_answer = get_stored_road_answer(state, "untaken_1")
+    road_2_answer = get_stored_road_answer(state, "untaken_2")
+    feedback = f"{response.speaker} has answered."
+
     yield (
-        gr.update(interactive=False),
-        gr.update(interactive=False),
-        format_road_answer(response),
+        gr.update(choices=choices, value=next_choice, interactive=has_choices),
+        gr.update(value="", interactive=has_choices),
+        gr.update(interactive=has_choices),
+        feedback,
+        road_1_answer,
+        road_2_answer,
         state,
     )
-
-
-def ask_untaken_1(question: str, state: dict):
-    yield from ask_untaken_road("untaken_1", question, state)
-
-
-def ask_untaken_2(question: str, state: dict):
-    yield from ask_untaken_road("untaken_2", question, state)
 
 
 with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
@@ -433,28 +511,24 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
 
     road_question_header = gr.Markdown("", visible=False)
 
-    with gr.Row():
-        with gr.Column():
-            road_1_title = gr.Markdown("", visible=False)
-            road_1_question = gr.Textbox(
-                label="Your question",
-                lines=2,
-                visible=False,
-                interactive=False,
-            )
-            road_1_button = gr.Button("Ask", visible=False, interactive=False)
-            road_1_answer = gr.Markdown("", visible=False)
+    road_question_target = gr.Dropdown(
+        label="Road to ask",
+        choices=[],
+        visible=False,
+        interactive=False,
+    )
+    road_question_text = gr.Textbox(
+        label="Your question",
+        lines=2,
+        visible=False,
+        interactive=False,
+    )
+    road_question_button = gr.Button("Ask", visible=False, interactive=False)
+    road_question_feedback = gr.Markdown("", visible=False)
 
-        with gr.Column():
-            road_2_title = gr.Markdown("", visible=False)
-            road_2_question = gr.Textbox(
-                label="Your question",
-                lines=2,
-                visible=False,
-                interactive=False,
-            )
-            road_2_button = gr.Button("Ask", visible=False, interactive=False)
-            road_2_answer = gr.Markdown("", visible=False)
+    with gr.Row():
+        road_1_answer = gr.Markdown("", visible=False)
+        road_2_answer = gr.Markdown("", visible=False)
 
     outputs = [
         story_output,
@@ -468,13 +542,11 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
         choice_c_button,
         state,
         road_question_header,
-        road_1_title,
-        road_1_question,
-        road_1_button,
+        road_question_target,
+        road_question_text,
+        road_question_button,
+        road_question_feedback,
         road_1_answer,
-        road_2_title,
-        road_2_question,
-        road_2_button,
         road_2_answer,
     ]
 
@@ -506,17 +578,18 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
         show_progress="full",
     )
 
-    road_1_button.click(
-        fn=ask_untaken_1,
-        inputs=[road_1_question, state],
-        outputs=[road_1_question, road_1_button, road_1_answer, state],
-        show_progress="full",
-    )
-
-    road_2_button.click(
-        fn=ask_untaken_2,
-        inputs=[road_2_question, state],
-        outputs=[road_2_question, road_2_button, road_2_answer, state],
+    road_question_button.click(
+        fn=ask_selected_untaken_road,
+        inputs=[road_question_target, road_question_text, state],
+        outputs=[
+            road_question_target,
+            road_question_text,
+            road_question_button,
+            road_question_feedback,
+            road_1_answer,
+            road_2_answer,
+            state,
+        ],
         show_progress="full",
     )
 
