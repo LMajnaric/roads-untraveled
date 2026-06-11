@@ -76,8 +76,10 @@ def get_choice_cards(scene_response):
 def get_hidden_road_question_outputs():
     return (
         gr.update(value="", visible=False),
+        gr.update(value="", visible=False),
         gr.update(value="", visible=False, interactive=False),
         gr.update(value="Ask", visible=False, interactive=False),
+        gr.update(value="", visible=False),
         gr.update(value="", visible=False),
         gr.update(value="", visible=False, interactive=False),
         gr.update(value="Ask", visible=False, interactive=False),
@@ -91,8 +93,9 @@ def get_road_question_outputs_for_ending(ending_response: EndingResponse):
 
     return (
         gr.update(value="## Ask the roads not taken", visible=True),
+        gr.update(value=f"### Ask {first_road.title}", visible=True),
         gr.update(
-            label=f"Ask {first_road.title}",
+            label="Your question",
             placeholder="What did you have that I lost?",
             value="",
             visible=True,
@@ -104,8 +107,9 @@ def get_road_question_outputs_for_ending(ending_response: EndingResponse):
             interactive=True,
         ),
         gr.update(value="", visible=True),
+        gr.update(value=f"### Ask {second_road.title}", visible=True),
         gr.update(
-            label=f"Ask {second_road.title}",
+            label="Your question",
             placeholder="Were you happier than me?",
             value="",
             visible=True,
@@ -399,8 +403,9 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
 
     with gr.Row():
         with gr.Column():
+            road_1_title = gr.Markdown("", visible=False)
             road_1_question = gr.Textbox(
-                label="Ask the first road not taken",
+                label="Your question",
                 lines=2,
                 visible=False,
                 interactive=False,
@@ -409,8 +414,9 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
             road_1_answer = gr.Markdown("", visible=False)
 
         with gr.Column():
+            road_2_title = gr.Markdown("", visible=False)
             road_2_question = gr.Textbox(
-                label="Ask the second road not taken",
+                label="Your question",
                 lines=2,
                 visible=False,
                 interactive=False,
@@ -429,9 +435,11 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
         choice_c_button,
         state,
         road_question_header,
+        road_1_title,
         road_1_question,
         road_1_button,
         road_1_answer,
+        road_2_title,
         road_2_question,
         road_2_button,
         road_2_answer,

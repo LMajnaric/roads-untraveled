@@ -14,6 +14,7 @@ from story_engine import (
     get_director_card,
     get_director_context,
     get_ending_markdown,
+    get_shadow_simulation_log,
     parse_ending_response,
     parse_scene_response,
 )
@@ -176,6 +177,17 @@ class StoryEngineTests(unittest.TestCase):
         self.assertIn("The PhD became a new country", markdown)
         self.assertNotIn("Won a fellowship in Boston", markdown)
         self.assertNotIn("Nursed his father through winter", markdown)
+
+    def test_shadow_simulation_log_shows_hidden_turning_points(self):
+        ending = parse_ending_response(ending_payload())
+        log_text = get_shadow_simulation_log(ending)
+
+        self.assertIn("--- SHADOW SIMULATION ---", log_text)
+        self.assertIn("Untaken road 1: The Research Life", log_text)
+        self.assertIn("Began from: A: Move to USA", log_text)
+        self.assertIn("1. Won a fellowship in Boston.", log_text)
+        self.assertIn("2. Nursed his father through winter.", log_text)
+        self.assertIn("--- END SHADOW SIMULATION ---", log_text)
 
     def test_create_initial_state_stores_ending_tone(self):
         state = create_initial_state(

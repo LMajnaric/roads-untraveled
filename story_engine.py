@@ -496,6 +496,30 @@ def get_ending_markdown(ending_response: EndingResponse) -> str:
 """
 
 
+def get_shadow_simulation_log(ending_response: EndingResponse) -> str:
+    lines = ["--- SHADOW SIMULATION ---"]
+    for index, life in enumerate(ending_response.alternate_lives, start=1):
+        lines.extend(
+            [
+                f"Untaken road {index}: {life.title}",
+                f"Began from: {life.source_choice}",
+                "Hidden turning points:",
+            ]
+        )
+        lines.extend(
+            [
+                f"{point_index}. {turning_point}"
+                for point_index, turning_point in enumerate(life.turning_points, start=1)
+            ]
+        )
+        lines.append(f"Summary: {life.summary}")
+        lines.append(f"Aftertaste: {life.emotional_aftertaste}")
+        lines.append("")
+
+    lines.append("--- END SHADOW SIMULATION ---")
+    return "\n".join(lines)
+
+
 def get_alternate_life_seeds(state: dict) -> list[dict[str, str]]:
     seeds = state.get("initial_roads_not_taken", [])[:2]
 
@@ -686,6 +710,7 @@ Rules:
     )
 
     ending_response = parse_ending_response(raw)
+    print(get_shadow_simulation_log(ending_response))
     branch["recent_scene"] = ending_response.final_scene
     branch["summary"] = ending_response.memory_update
     branch["last_choices"] = []
