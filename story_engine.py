@@ -4,7 +4,12 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from llm_client import generate_chat_response
-from prompts import ENDING_JSON_INSTRUCTIONS, SCENE_JSON_INSTRUCTIONS, SYSTEM_PROMPT
+from prompts import (
+    ENDING_JSON_INSTRUCTIONS,
+    ROAD_QUESTION_JSON_INSTRUCTIONS,
+    SCENE_JSON_INSTRUCTIONS,
+    SYSTEM_PROMPT,
+)
 
 
 StoryMode = Literal["grounded", "strange", "cinematic"]
@@ -116,6 +121,12 @@ class RoadConversationLine(BaseModel):
     line: str
 
 
+class RoadQuestionResponse(BaseModel):
+    speaker: str
+    source: Literal["untaken_1", "untaken_2"]
+    answer: str
+
+
 class EndingResponse(BaseModel):
     time_jump: str
     final_scene: str
@@ -156,6 +167,13 @@ def normalize_ending_tone(ending_tone: str | None) -> EndingTone:
     if ending_tone in {"poetic", "weird", "direct"}:
         return ending_tone  # type: ignore[return-value]
     return "poetic"
+
+
+def create_road_questions_state() -> dict:
+    return {
+        "untaken_1": {"used": False, "question": "", "answer": ""},
+        "untaken_2": {"used": False, "question": "", "answer": ""},
+    }
 
 
 def choice_to_text(choice: dict[str, Any] | str | None) -> str:
@@ -272,6 +290,8 @@ def create_initial_state(
         "initial_choices": [],
         "initial_chosen_choice": None,
         "initial_roads_not_taken": [],
+        "ending": None,
+        "road_questions": create_road_questions_state(),
         "branches": {
             "main": {
                 "title": "The first road",
@@ -406,6 +426,25 @@ def parse_ending_response(raw: str) -> EndingResponse:
         return EndingResponse.model_validate(parsed)
 
 
+def parse_road_question_response(raw: str) -> RoadQuestionResponse:
+    try:
+        parsed = extract_json(raw)
+        return RoadQuestionResponse.model_validate(parsed)
+    except (ValueError, ValidationError) as e:
+        print("\n--- RAW MODEL OUTPUT FAILED ROAD QUESTION JSON PARSING OR VALIDATION ---")
+        print(raw)
+        print("\n--- ERROR ---")
+        print(e)
+        print("--- END RAW MODEL OUTPUT ---\n")
+
+        parsed = repair_json_with_model(
+            raw,
+            error_message=str(e),
+            required_structure=ROAD_QUESTION_JSON_INSTRUCTIONS,
+        )
+        return RoadQuestionResponse.model_validate(parsed)
+
+
 def get_scene_markdown(scene_response: SceneResponse) -> str:
     return f"""
 ### {scene_response.time_jump}
@@ -470,6 +509,114 @@ def get_alternate_life_seeds(state: dict) -> list[dict[str, str]]:
         )
 
     return seeds
+
+
+def get_ending_from_state(state: dict) -> EndingResponse:
+    ending = state.get("ending")
+    if ending is None:
+        raise ValueError("No ending is available yet.")
+    return EndingResponse.model_validate(ending)
+
+
+def get_untaken_road(ending_response: EndingResponse, source: str) -> AlternateLife:
+    if source == "untaken_1":
+        return ending_response.alternate_lives[0]
+    if source == "untaken_2":
+        return ending_response.alternate_lives[1]
+    raise ValueError("source must be untaken_1 or untaken_2.")
+
+
+def answer_untaken_road_question(
+    state: dict,
+    source: str,
+    question: str,
+) -> tuple[dict, RoadQuestionResponse]:
+    question = question.strip()
+    if not question:
+        raise ValueError("Question cannot be empty.")
+
+    ending_response = get_ending_from_state(state)
+    road = get_untaken_road(ending_response, source)
+    road_questions = state.setdefault("road_questions", create_road_questions_state())
+    road_question = road_questions.setdefault(
+        source,
+        {"used": False, "question": "", "answer": ""},
+    )
+
+    if road_question.get("used"):
+        raise ValueError(f"{road.title} has already answered a question.")
+
+    ending_tone = normalize_ending_tone(state.get("ending_tone"))
+    branch = state["branches"][state["active_branch"]]
+    road_conversation = [
+        line.model_dump() for line in ending_response.road_conversation
+    ]
+
+    user_prompt = f"""
+Premise:
+{state["premise"]}
+
+Chosen decisions in the lived road:
+{branch["chosen_decisions"]}
+
+Chosen life summary:
+{ending_response.chosen_life_summary}
+
+Untaken roads:
+{[life.model_dump() for life in ending_response.alternate_lives]}
+
+Existing road conversation:
+{road_conversation}
+
+Selected untaken road:
+source: {source}
+title: {road.title}
+source choice: {road.source_choice}
+summary: {road.summary}
+aftertaste: {road.emotional_aftertaste}
+
+User question from the lived road:
+{question}
+
+Ending tone:
+{ending_tone}
+
+Task:
+Answer the question as the selected untaken road. The lived road is asking across the divide.
+
+Rules:
+- The answer must be from {road.title}, not from the narrator.
+- Stay rooted in this road's summary, source choice, and aftertaste.
+- Do not invent a fourth road.
+- Do not continue the plot beyond the ending.
+- Keep the answer under 90 words.
+- Match the ending tone: poetic is lyrical and restrained, weird is uncanny and playful, direct is plainspoken and piercing.
+
+{ROAD_QUESTION_JSON_INSTRUCTIONS}
+"""
+
+    raw = generate_chat_response(
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.72,
+        max_tokens=450,
+    )
+
+    road_answer = parse_road_question_response(raw)
+    if road_answer.source != source:
+        road_answer = RoadQuestionResponse(
+            speaker=road_answer.speaker,
+            source=source,  # type: ignore[arg-type]
+            answer=road_answer.answer,
+        )
+
+    road_question["used"] = True
+    road_question["question"] = question
+    road_question["answer"] = road_answer.model_dump()
+
+    return state, road_answer
 
 
 def generate_ending(
@@ -539,6 +686,8 @@ Rules:
     branch["last_choices"] = []
     branch["ended"] = True
     branch["step"] = branch.get("step", 0) + 1
+    state["ending"] = ending_response.model_dump()
+    state["road_questions"] = create_road_questions_state()
 
     return state, ending_response
 

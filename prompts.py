@@ -124,3 +124,22 @@ No text before or after the JSON.
 The alternate lives must be simulated from the two initial roads not taken, not from later unchosen choices.
 The road_conversation array must contain exactly 3 lines from chosen, untaken_1, and untaken_2.
 """
+
+ROAD_QUESTION_JSON_INSTRUCTIONS = """
+Return exactly this JSON structure:
+
+{
+  "speaker": "The title of the untaken road answering the question.",
+  "source": "untaken_1 or untaken_2",
+  "answer": "A short answer from that untaken road. Maximum 90 words. No unescaped double quotes."
+}
+
+Important:
+Return valid JSON only.
+No markdown.
+No explanation.
+No text before or after the JSON.
+The answer must come from the selected untaken road only.
+Do not invent a fourth road.
+Do not continue the plot beyond the ending.
+"""

@@ -5,7 +5,9 @@ from unittest.mock import patch
 import story_engine
 from story_engine import (
     EndingResponse,
+    RoadQuestionResponse,
     SceneResponse,
+    answer_untaken_road_question,
     create_initial_state,
     extract_json,
     generate_scene,
@@ -93,6 +95,33 @@ def ending_payload() -> str:
     )
 
 
+def road_question_payload(source: str = "untaken_1") -> str:
+    return json.dumps(
+        {
+            "speaker": "The Research Life",
+            "source": source,
+            "answer": "I had the clean terror of distance, and it taught me what ambition could not hold.",
+        }
+    )
+
+
+def ended_state() -> dict:
+    state = create_initial_state(
+        "Move to the USA for a PhD or build a family in Europe.",
+        mode="strange",
+        max_steps=5,
+        ending_tone="direct",
+    )
+    state["ending"] = EndingResponse.model_validate(
+        json.loads(ending_payload())
+    ).model_dump()
+    state["branches"]["main"]["chosen_decisions"] = [
+        "B: Have Children - Stay near family.",
+        "A: Accept the cost - Leave the old home.",
+    ]
+    return state
+
+
 class StoryEngineTests(unittest.TestCase):
     def test_extract_json_from_wrapped_model_output(self):
         self.assertEqual(extract_json("Here:\n```json\n{\"a\": 1}\n```"), {"a": 1})
@@ -100,12 +129,16 @@ class StoryEngineTests(unittest.TestCase):
     def test_scene_and_ending_validation(self):
         scene = parse_scene_response(scene_payload(1))
         ending = parse_ending_response(ending_payload())
+        road_answer = RoadQuestionResponse.model_validate(
+            json.loads(road_question_payload())
+        )
 
         self.assertIsInstance(scene, SceneResponse)
         self.assertEqual([choice.id for choice in scene.choices], ["A", "B", "C"])
         self.assertIsInstance(ending, EndingResponse)
         self.assertEqual(len(ending.alternate_lives), 2)
         self.assertEqual(len(ending.road_conversation), 3)
+        self.assertEqual(road_answer.source, "untaken_1")
 
     def test_create_initial_state_stores_ending_tone(self):
         state = create_initial_state(
@@ -224,6 +257,72 @@ class StoryEngineTests(unittest.TestCase):
         self.assertIn("chosen, untaken_1, untaken_2", captured_prompt)
         self.assertIn("weird is uncanny and playful", captured_prompt)
 
+    def test_answer_untaken_road_question_rejects_invalid_state(self):
+        with self.assertRaisesRegex(ValueError, "No ending"):
+            answer_untaken_road_question(
+                create_initial_state("A life begins."),
+                "untaken_1",
+                "Were you happier?",
+            )
+
+        with self.assertRaisesRegex(ValueError, "Question cannot be empty"):
+            answer_untaken_road_question(ended_state(), "untaken_1", "   ")
+
+        with self.assertRaisesRegex(ValueError, "source must be"):
+            answer_untaken_road_question(
+                ended_state(),
+                "chosen",
+                "Were you happier?",
+            )
+
+        state = ended_state()
+        state["road_questions"]["untaken_1"]["used"] = True
+        with self.assertRaisesRegex(ValueError, "already answered"):
+            answer_untaken_road_question(
+                state,
+                "untaken_1",
+                "Were you happier?",
+            )
+
+    def test_answer_untaken_road_question_prompt_and_state_update(self):
+        captured_prompt = ""
+
+        def fake_generate_chat_response(messages, *args, **kwargs):
+            nonlocal captured_prompt
+            captured_prompt = messages[-1]["content"]
+            return road_question_payload("untaken_1")
+
+        state = ended_state()
+
+        with patch.object(
+            story_engine,
+            "generate_chat_response",
+            fake_generate_chat_response,
+        ):
+            state, answer = answer_untaken_road_question(
+                state,
+                "untaken_1",
+                "Were you happier than me?",
+            )
+
+        self.assertIsInstance(answer, RoadQuestionResponse)
+        self.assertEqual(answer.source, "untaken_1")
+        self.assertTrue(state["road_questions"]["untaken_1"]["used"])
+        self.assertEqual(
+            state["road_questions"]["untaken_1"]["question"],
+            "Were you happier than me?",
+        )
+        self.assertEqual(
+            state["road_questions"]["untaken_1"]["answer"]["speaker"],
+            "The Research Life",
+        )
+        self.assertIn("title: The Research Life", captured_prompt)
+        self.assertIn("source: untaken_1", captured_prompt)
+        self.assertIn("Were you happier than me?", captured_prompt)
+        self.assertIn("The Near Life", captured_prompt)
+        self.assertIn("I kept the door I could bear to close.", captured_prompt)
+        self.assertIn("Ending tone:\ndirect", captured_prompt)
+
     def test_initial_roads_not_taken_seed_the_ending(self):
         responses = iter(
             [
@@ -283,6 +382,8 @@ class StoryEngineTests(unittest.TestCase):
         self.assertIsInstance(ending, EndingResponse)
         self.assertTrue(state["branches"]["main"]["ended"])
         self.assertEqual(state["branches"]["main"]["last_choices"], [])
+        self.assertIsNotNone(state["ending"])
+        self.assertFalse(state["road_questions"]["untaken_1"]["used"])
         self.assertEqual(len(state["branches"]["main"]["chosen_decisions"]), 5)
         self.assertEqual(
             [choice["label"] for choice in state["initial_roads_not_taken"]],

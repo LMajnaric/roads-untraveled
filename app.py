@@ -2,6 +2,7 @@ import gradio as gr
 
 from story_engine import (
     EndingResponse,
+    answer_untaken_road_question,
     create_initial_state,
     generate_scene,
     get_ending_markdown,
@@ -72,6 +73,61 @@ def get_choice_cards(scene_response):
     )
 
 
+def get_hidden_road_question_outputs():
+    return (
+        gr.update(value="", visible=False),
+        gr.update(value="", visible=False, interactive=False),
+        gr.update(value="Ask", visible=False, interactive=False),
+        gr.update(value="", visible=False),
+        gr.update(value="", visible=False, interactive=False),
+        gr.update(value="Ask", visible=False, interactive=False),
+        gr.update(value="", visible=False),
+    )
+
+
+def get_road_question_outputs_for_ending(ending_response: EndingResponse):
+    first_road = ending_response.alternate_lives[0]
+    second_road = ending_response.alternate_lives[1]
+
+    return (
+        gr.update(value="## Ask the roads not taken", visible=True),
+        gr.update(
+            label=f"Ask {first_road.title}",
+            placeholder="What did you have that I lost?",
+            value="",
+            visible=True,
+            interactive=True,
+        ),
+        gr.update(
+            value=f"Ask {first_road.title}",
+            visible=True,
+            interactive=True,
+        ),
+        gr.update(value="", visible=True),
+        gr.update(
+            label=f"Ask {second_road.title}",
+            placeholder="Were you happier than me?",
+            value="",
+            visible=True,
+            interactive=True,
+        ),
+        gr.update(
+            value=f"Ask {second_road.title}",
+            visible=True,
+            interactive=True,
+        ),
+        gr.update(value="", visible=True),
+    )
+
+
+def format_road_answer(response) -> str:
+    return f"""
+### {response.speaker}
+
+{response.answer}
+"""
+
+
 def start_story(premise: str, mode: str, max_steps: int, ending_tone: str):
     if not premise.strip():
         yield (
@@ -84,6 +140,7 @@ def start_story(premise: str, mode: str, max_steps: int, ending_tone: str):
             gr.update(interactive=False),
             gr.update(interactive=False),
             None,
+            *get_hidden_road_question_outputs(),
         )
         return
 
@@ -97,6 +154,7 @@ def start_story(premise: str, mode: str, max_steps: int, ending_tone: str):
         gr.update(interactive=False),
         gr.update(interactive=False),
         None,
+        *get_hidden_road_question_outputs(),
     )
 
     state = create_initial_state(
@@ -119,6 +177,7 @@ def start_story(premise: str, mode: str, max_steps: int, ending_tone: str):
         gr.update(interactive=True),
         gr.update(interactive=True),
         state,
+        *get_hidden_road_question_outputs(),
     )
 
 
@@ -134,6 +193,7 @@ def choose_path(choice_id: str, state: dict):
             gr.update(interactive=False),
             gr.update(interactive=False),
             state,
+            *get_hidden_road_question_outputs(),
         )
         return
 
@@ -153,6 +213,7 @@ def choose_path(choice_id: str, state: dict):
             gr.update(interactive=True),
             gr.update(interactive=True),
             state,
+            *get_hidden_road_question_outputs(),
         )
         return
 
@@ -168,6 +229,7 @@ def choose_path(choice_id: str, state: dict):
         gr.update(interactive=False),
         gr.update(interactive=False),
         state,
+        *get_hidden_road_question_outputs(),
     )
 
     state, story_response = generate_scene(state, selected_choice=selected)
@@ -183,6 +245,7 @@ def choose_path(choice_id: str, state: dict):
             gr.update(interactive=False),
             gr.update(interactive=False),
             state,
+            *get_road_question_outputs_for_ending(story_response),
         )
         return
 
@@ -199,6 +262,7 @@ def choose_path(choice_id: str, state: dict):
         gr.update(interactive=True),
         gr.update(interactive=True),
         state,
+        *get_hidden_road_question_outputs(),
     )
 
 
@@ -212,6 +276,59 @@ def choose_b(state):
 
 def choose_c(state):
     yield from choose_path("C", state)
+
+
+def ask_untaken_road(source: str, question: str, state: dict):
+    if state is None:
+        yield (
+            gr.update(interactive=False),
+            gr.update(interactive=False),
+            "Start and finish a story first.",
+            state,
+        )
+        return
+
+    if not question.strip():
+        yield (
+            gr.update(interactive=True),
+            gr.update(interactive=True),
+            "Ask this road a question first.",
+            state,
+        )
+        return
+
+    yield (
+        gr.update(interactive=False),
+        gr.update(interactive=False),
+        "The road is answering...",
+        state,
+    )
+
+    try:
+        state, response = answer_untaken_road_question(state, source, question)
+    except ValueError as e:
+        yield (
+            gr.update(interactive=False),
+            gr.update(interactive=False),
+            str(e),
+            state,
+        )
+        return
+
+    yield (
+        gr.update(interactive=False),
+        gr.update(interactive=False),
+        format_road_answer(response),
+        state,
+    )
+
+
+def ask_untaken_1(question: str, state: dict):
+    yield from ask_untaken_road("untaken_1", question, state)
+
+
+def ask_untaken_2(question: str, state: dict):
+    yield from ask_untaken_road("untaken_2", question, state)
 
 
 with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
@@ -278,6 +395,29 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
             choice_c_card = gr.Markdown("", elem_classes=["choice-card"])
             choice_c_button = gr.Button("Choose C", interactive=False)
 
+    road_question_header = gr.Markdown("", visible=False)
+
+    with gr.Row():
+        with gr.Column():
+            road_1_question = gr.Textbox(
+                label="Ask the first road not taken",
+                lines=2,
+                visible=False,
+                interactive=False,
+            )
+            road_1_button = gr.Button("Ask", visible=False, interactive=False)
+            road_1_answer = gr.Markdown("", visible=False)
+
+        with gr.Column():
+            road_2_question = gr.Textbox(
+                label="Ask the second road not taken",
+                lines=2,
+                visible=False,
+                interactive=False,
+            )
+            road_2_button = gr.Button("Ask", visible=False, interactive=False)
+            road_2_answer = gr.Markdown("", visible=False)
+
     outputs = [
         story_output,
         choice_a_card,
@@ -288,6 +428,13 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
         choice_b_button,
         choice_c_button,
         state,
+        road_question_header,
+        road_1_question,
+        road_1_button,
+        road_1_answer,
+        road_2_question,
+        road_2_button,
+        road_2_answer,
     ]
 
     start_button.click(
@@ -315,6 +462,20 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
         fn=choose_c,
         inputs=[state],
         outputs=outputs,
+        show_progress="full",
+    )
+
+    road_1_button.click(
+        fn=ask_untaken_1,
+        inputs=[road_1_question, state],
+        outputs=[road_1_question, road_1_button, road_1_answer, state],
+        show_progress="full",
+    )
+
+    road_2_button.click(
+        fn=ask_untaken_2,
+        inputs=[road_2_question, state],
+        outputs=[road_2_question, road_2_button, road_2_answer, state],
         show_progress="full",
     )
 
