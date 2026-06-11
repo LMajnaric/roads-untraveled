@@ -170,6 +170,12 @@ def normalize_ending_tone(ending_tone: str | None) -> EndingTone:
     return "poetic"
 
 
+def normalize_custom_choices_enabled(value: bool | str | None) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on", "enabled"}
+    return bool(value)
+
+
 def create_road_questions_state() -> dict:
     return {
         "untaken_1": {"used": False, "question": "", "answer": ""},
@@ -281,12 +287,16 @@ def create_initial_state(
     mode: str | None = "grounded",
     max_steps: int | float | str | None = DEFAULT_MAX_STEPS,
     ending_tone: str | None = "poetic",
+    custom_choices_enabled: bool | str | None = False,
 ) -> dict:
     return {
         "premise": premise,
         "mode": normalize_mode(mode),
         "ending_tone": normalize_ending_tone(ending_tone),
         "max_steps": clamp_max_steps(max_steps),
+        "custom_choices_enabled": normalize_custom_choices_enabled(
+            custom_choices_enabled
+        ),
         "active_branch": "main",
         "initial_choices": [],
         "initial_chosen_choice": None,
@@ -376,6 +386,20 @@ def record_selected_choice(
         branch["chosen_decisions"].append(selected_text)
 
     return selected_text
+
+
+def get_custom_choice_guidance(selected_choice: dict[str, Any] | str | None) -> str:
+    if not isinstance(selected_choice, dict) or selected_choice.get("id") != "D":
+        return ""
+
+    return """
+Custom choice guidance:
+- The selected choice was written by the user, not offered by the model.
+- Honor the user's specific road as a serious life-shaping decision.
+- Do not treat it as a consequence-free escape hatch.
+- Redirect the story through plausible tradeoffs, obligations, losses, or costs.
+- Do not undo prior events or erase established losses unless the new path pays a believable cost.
+"""
 
 
 def update_choice_memory(branch: dict, scene_response: SceneResponse) -> None:
@@ -732,6 +756,7 @@ def generate_scene(
     mode = normalize_mode(state.get("mode"))
     max_steps = clamp_max_steps(state.get("max_steps"))
     selected_text = record_selected_choice(state, branch, selected_choice)
+    custom_choice_guidance = get_custom_choice_guidance(selected_choice)
     decision_count = len(branch["chosen_decisions"])
 
     if selected_choice is not None and decision_count >= max_steps:
@@ -766,6 +791,8 @@ Recent choice patterns to avoid repeating:
 
 Selected choice:
 {selected_text}
+
+{custom_choice_guidance}
 
 {director_context}
 

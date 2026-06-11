@@ -209,6 +209,50 @@ class StoryEngineTests(unittest.TestCase):
 
         self.assertEqual(state["ending_tone"], "poetic")
 
+    def test_create_initial_state_stores_custom_choice_toggle(self):
+        default_state = create_initial_state("A life begins.")
+        enabled_state = create_initial_state(
+            "A life begins.",
+            custom_choices_enabled=True,
+        )
+
+        self.assertFalse(default_state["custom_choices_enabled"])
+        self.assertTrue(enabled_state["custom_choices_enabled"])
+
+    def test_custom_choice_prompt_guidance_is_included(self):
+        captured = {}
+
+        def fake_generate_chat_response(messages, **kwargs):
+            captured["prompt"] = messages[-1]["content"]
+            return scene_payload(1)
+
+        state = create_initial_state(
+            "Move to the USA for a PhD or build a family in Europe.",
+            custom_choices_enabled=True,
+        )
+        state["branches"]["main"]["chosen_decisions"] = [
+            "A: Move to USA - Build a research life."
+        ]
+
+        with patch.object(
+            story_engine,
+            "generate_chat_response",
+            fake_generate_chat_response,
+        ):
+            generate_scene(
+                state,
+                selected_choice={
+                    "id": "D",
+                    "label": "Move home and rebuild trust with my sister.",
+                    "tone": "self-authored",
+                    "preview": "A user-authored road.",
+                },
+            )
+
+        self.assertIn("The selected choice was written by the user", captured["prompt"])
+        self.assertIn("consequence-free escape hatch", captured["prompt"])
+        self.assertIn("Move home and rebuild trust", captured["prompt"])
+
     def test_scene_validation_requires_ordered_abc_choices(self):
         broken = json.loads(scene_payload(1))
         broken["choices"][1]["id"] = "A"
