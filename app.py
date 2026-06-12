@@ -575,16 +575,16 @@ def get_ending_branch_map_markdown(state: dict | None) -> str:
     left_branch = get_shadow_branch_markdown(alternate_lives[0], "left")
     right_branch = get_shadow_branch_markdown(alternate_lives[1], "right")
 
-    return f"""
-<div class="ending-map">
-  <div class="ending-map-title">The roads that kept walking without you</div>
-  <div class="branch-map">
-    {left_branch}
-    <div class="lived-stem">the life you lived</div>
-    {right_branch}
-  </div>
-</div>
-"""
+    return (
+        '<div class="ending-map">'
+        '<div class="ending-map-title">The roads that kept walking without you</div>'
+        '<div class="branch-map">'
+        f"{left_branch}"
+        '<div class="lived-stem">the life you lived</div>'
+        f"{right_branch}"
+        "</div>"
+        "</div>"
+    )
 
 
 def get_hidden_custom_choice_outputs():
