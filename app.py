@@ -1,3 +1,5 @@
+from html import escape
+
 import gradio as gr
 
 from story_engine import (
@@ -10,40 +12,420 @@ from story_engine import (
 )
 
 CSS = """
-#main-title {
+:root {
+    --lantern-bg: #171410;
+    --lantern-panel: rgba(39, 31, 25, 0.86);
+    --lantern-panel-strong: rgba(51, 39, 29, 0.92);
+    --lantern-paper: #f4e5c4;
+    --lantern-ink: #f8ecd1;
+    --lantern-muted: #cbbf9f;
+    --lantern-amber: #e7b85d;
+    --lantern-copper: #b86f45;
+    --lantern-moss: #7f9562;
+    --lantern-berry: #9f5869;
+    --lantern-border: rgba(231, 184, 93, 0.34);
+}
+
+.gradio-container {
+    color: var(--lantern-ink) !important;
+    background:
+        radial-gradient(circle at 50% 0%, rgba(231, 184, 93, 0.16), transparent 28rem),
+        radial-gradient(circle at 8% 22%, rgba(127, 149, 98, 0.14), transparent 22rem),
+        radial-gradient(circle at 85% 70%, rgba(159, 88, 105, 0.12), transparent 24rem),
+        linear-gradient(180deg, #16110f 0%, #1d1713 48%, #11100d 100%) !important;
+    min-height: 100vh;
+}
+
+.gradio-container::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.024) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    background-size: 46px 46px;
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), transparent 80%);
+}
+
+.gradio-container a,
+.gradio-container label,
+.gradio-container .prose,
+.gradio-container .prose * {
+    color: var(--lantern-ink);
+}
+
+.app-shell {
+    max-width: 1120px;
+    margin: 0 auto;
+}
+
+#main-title h1 {
     text-align: center;
-    margin-bottom: 0.2rem;
+    margin: 0.4rem 0 0.2rem;
+    color: #fff4db;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2.6rem, 7vw, 5.2rem);
+    font-weight: 500;
+    letter-spacing: 0;
+    text-shadow: 0 0 34px rgba(231, 184, 93, 0.26);
 }
 
 #subtitle {
     text-align: center;
-    opacity: 0.8;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.6rem;
 }
 
-.story-box {
-    border: 1px solid #333;
-    border-radius: 14px;
+#subtitle p {
+    color: var(--lantern-muted);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.08rem;
+    font-style: italic;
+}
+
+.eyebrow {
+    color: var(--lantern-amber);
+    font-size: 0.72rem;
+    letter-spacing: 0.28em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.ritual-panel,
+.story-box,
+.choice-card,
+.trail-box,
+.custom-road,
+.road-question {
+    border: 1px solid var(--lantern-border);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(255, 244, 219, 0.065), transparent 42%),
+        var(--lantern-panel);
+    box-shadow: 0 18px 70px rgba(0, 0, 0, 0.34);
+}
+
+.ritual-panel {
     padding: 18px;
-    margin-bottom: 18px;
-    background: rgba(255, 255, 255, 0.03);
+    margin-bottom: 14px;
 }
 
-.choice-card {
-    border: 1px solid #444;
-    border-radius: 14px;
-    padding: 14px;
-    min-height: 210px;
-    background: rgba(255, 255, 255, 0.04);
+.ritual-panel textarea,
+.ritual-panel input,
+.ritual-panel select,
+.ritual-panel .wrap,
+.ritual-panel .container,
+.ritual-panel .secondary-wrap {
+    border-color: rgba(231, 184, 93, 0.25) !important;
+    background: rgba(17, 14, 12, 0.66) !important;
+    color: var(--lantern-ink) !important;
 }
 
-.choice-card h3 {
-    margin-top: 0;
+.compact-controls {
+    align-items: end;
+}
+
+button.primary,
+.gradio-container button.primary {
+    border: 1px solid rgba(255, 229, 167, 0.5) !important;
+    background: linear-gradient(135deg, #e6b75d 0%, #bd7544 100%) !important;
+    color: #20150d !important;
+    font-weight: 700 !important;
+    box-shadow: 0 8px 26px rgba(231, 184, 93, 0.28);
+}
+
+.gradio-container button:not(.primary) {
+    border-color: rgba(231, 184, 93, 0.34) !important;
+    background: rgba(33, 27, 23, 0.88) !important;
+    color: var(--lantern-ink) !important;
+}
+
+.gradio-container button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.26);
 }
 
 .status-text {
-    opacity: 0.75;
+    color: var(--lantern-muted);
+    font-family: Georgia, "Times New Roman", serif;
     font-style: italic;
+    margin: 0.6rem 0 0.9rem;
+}
+
+.story-box {
+    padding: 22px 24px;
+    margin-bottom: 18px;
+    background:
+        linear-gradient(180deg, rgba(244, 229, 196, 0.09), rgba(244, 229, 196, 0.035)),
+        var(--lantern-panel-strong);
+}
+
+.story-box h3,
+.story-box h2 {
+    color: #fff2d2;
+    font-family: Georgia, "Times New Roman", serif;
+    letter-spacing: 0;
+}
+
+.story-box p,
+.story-box li {
+    color: #f4e8ca;
+    font-size: 1.03rem;
+    line-height: 1.72;
+}
+
+.section-title h2 {
+    color: #fff1cd;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.35rem;
+    font-weight: 500;
+    margin-top: 0.8rem;
+}
+
+.choice-card {
+    min-height: 220px;
+    padding: 16px;
+    transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.choice-card:hover {
+    border-color: rgba(231, 184, 93, 0.72);
+    background:
+        linear-gradient(135deg, rgba(231, 184, 93, 0.13), transparent 45%),
+        var(--lantern-panel);
+    transform: translateY(-2px);
+}
+
+.choice-card h3 {
+    color: #fff0ca;
+    font-family: Georgia, "Times New Roman", serif;
+    margin-top: 0;
+}
+
+.choice-card strong {
+    color: var(--lantern-amber);
+}
+
+.trail-box {
+    padding: 18px;
+    margin-bottom: 18px;
+    overflow: hidden;
+}
+
+.trail-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.8rem;
+}
+
+.trail-title {
+    color: #fff1cd;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.35rem;
+}
+
+.trail-kicker {
+    color: var(--lantern-amber);
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+}
+
+.chosen-trail {
+    position: relative;
+    display: grid;
+    gap: 0.62rem;
+    margin: 0.2rem 0 0.4rem;
+}
+
+.chosen-trail::before {
+    content: "";
+    position: absolute;
+    left: 16px;
+    top: 14px;
+    bottom: 14px;
+    width: 2px;
+    background: linear-gradient(var(--lantern-amber), rgba(231, 184, 93, 0.12));
+}
+
+.trail-step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 0.75rem;
+    align-items: start;
+}
+
+.trail-dot {
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(255, 230, 174, 0.62);
+    border-radius: 999px;
+    background: radial-gradient(circle, #ffe7a9 0%, #c9853f 52%, #44281a 100%);
+    color: #24160d;
+    font-size: 0.82rem;
+    font-weight: 800;
+    box-shadow: 0 0 22px rgba(231, 184, 93, 0.3);
+}
+
+.trail-dot.unlit {
+    background: radial-gradient(circle, #8d826a 0%, #4b4032 58%, #211914 100%);
+    color: #d7c8a5;
+}
+
+.trail-label {
+    min-height: 34px;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid rgba(231, 184, 93, 0.18);
+    border-radius: 8px;
+    background: rgba(17, 14, 12, 0.48);
+    color: #f7e8c8;
+}
+
+.ending-map {
+    margin-top: 1.1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(231, 184, 93, 0.18);
+}
+
+.ending-map-title {
+    margin-bottom: 0.8rem;
+    color: #fff1cd;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.18rem;
+    text-align: center;
+}
+
+.branch-map {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 0.58fr) minmax(0, 1fr);
+    gap: 0.8rem;
+    align-items: start;
+}
+
+.shadow-branch {
+    position: relative;
+    display: grid;
+    gap: 0.55rem;
+    padding: 0.85rem;
+    border: 1px solid rgba(231, 184, 93, 0.2);
+    border-radius: 8px;
+    background: rgba(17, 14, 12, 0.38);
+}
+
+.shadow-branch.left {
+    transform: rotate(-4deg);
+    transform-origin: top right;
+}
+
+.shadow-branch.right {
+    transform: rotate(4deg);
+    transform-origin: top left;
+}
+
+.shadow-branch.left::before,
+.shadow-branch.right::before {
+    content: "";
+    position: absolute;
+    top: -1.1rem;
+    width: 54%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(231, 184, 93, 0.65), transparent);
+}
+
+.shadow-branch.left::before {
+    right: -0.3rem;
+    transform: rotate(-24deg);
+}
+
+.shadow-branch.right::before {
+    left: -0.3rem;
+    transform: rotate(24deg);
+}
+
+.shadow-title {
+    color: var(--lantern-amber);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1rem;
+}
+
+.shadow-point {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 0.5rem;
+    color: #e9ddbd;
+    font-size: 0.9rem;
+    line-height: 1.35;
+}
+
+.shadow-dot {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: rgba(127, 149, 98, 0.24);
+    color: #d9e2bd;
+    font-size: 0.72rem;
+}
+
+.lived-stem {
+    display: grid;
+    place-items: center;
+    min-height: 8.5rem;
+    color: var(--lantern-muted);
+    text-align: center;
+}
+
+.lived-stem::before {
+    content: "";
+    display: block;
+    width: 2px;
+    height: 5.2rem;
+    margin: 0 auto 0.7rem;
+    background: linear-gradient(rgba(231, 184, 93, 0.85), rgba(231, 184, 93, 0.16));
+}
+
+.custom-road,
+.road-question {
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.road-answer {
+    border: 1px solid rgba(231, 184, 93, 0.22);
+    border-radius: 8px;
+    padding: 12px;
+    background: rgba(17, 14, 12, 0.42);
+}
+
+@media (max-width: 760px) {
+    .branch-map {
+        grid-template-columns: 1fr;
+    }
+
+    .lived-stem {
+        min-height: auto;
+    }
+
+    .lived-stem::before {
+        height: 2.5rem;
+    }
+
+    .shadow-branch.left,
+    .shadow-branch.right {
+        transform: none;
+    }
+
+    .shadow-branch.left::before,
+    .shadow-branch.right::before {
+        display: none;
+    }
 }
 """
 
@@ -51,14 +433,32 @@ CUSTOM_CHOICE_MIN_CHARS = 20
 CUSTOM_CHOICE_MAX_CHARS = 180
 
 
+def shorten_text(text: str, limit: int = 82) -> str:
+    text = " ".join(str(text).split())
+    if len(text) <= limit:
+        return text
+    return f"{text[: limit - 3].rstrip()}..."
+
+
+def get_choice_label(choice_text: str) -> str:
+    text = " ".join(str(choice_text).split())
+    if ": " in text:
+        text = text.split(": ", 1)[1]
+    if " - " in text:
+        text = text.split(" - ", 1)[0]
+    return text
+
+
 def choice_to_markdown(choice: dict) -> str:
     return f"""
-### {choice["id"]}. {choice["label"]}
+<div class="choice-inner">
+<div class="trail-kicker">Road {escape(choice["id"])}</div>
 
-**Tone:** {choice["tone"]}
+### {escape(choice["label"])}
 
-**Preview:**  
-{choice["preview"]}
+<p><strong>{escape(choice["tone"])}</strong></p>
+<p>{escape(choice["preview"])}</p>
+</div>
 """
 
 
@@ -74,6 +474,117 @@ def get_choice_cards(scene_response):
         choice_to_markdown(choices[1]),
         choice_to_markdown(choices[2]),
     )
+
+
+def get_trail_markdown(state: dict | None) -> str:
+    if not state:
+        chosen_steps = """
+<div class="trail-step">
+  <div class="trail-dot unlit">0</div>
+  <div class="trail-label">The first fork is waiting for a lantern.</div>
+</div>
+"""
+        progress = "No road lit yet"
+        ending_map = ""
+    else:
+        branch = state["branches"][state["active_branch"]]
+        decisions = branch.get("chosen_decisions", [])
+        if decisions:
+            step_html = []
+            for index, decision in enumerate(decisions, start=1):
+                label = escape(shorten_text(get_choice_label(decision)))
+                step_html.append(
+                    f"""
+<div class="trail-step">
+  <div class="trail-dot">{index}</div>
+  <div class="trail-label">{label}</div>
+</div>
+"""
+                )
+            chosen_steps = "\n".join(step_html)
+        else:
+            chosen_steps = """
+<div class="trail-step">
+  <div class="trail-dot unlit">0</div>
+  <div class="trail-label">The first fork is lit. Choose the road that calls.</div>
+</div>
+"""
+
+        made = len(decisions)
+        max_steps = state.get("max_steps", "?")
+        progress = f"{made} of {max_steps} major choices made"
+        if branch.get("ended"):
+            progress = "The lived road has reached its clearing"
+        ending_map = get_ending_branch_map_markdown(state)
+
+    return f"""
+<div class="trail-box">
+  <div class="trail-header">
+    <div class="trail-title">Lantern Trail</div>
+    <div class="trail-kicker">{escape(progress)}</div>
+  </div>
+  <div class="chosen-trail">
+    {chosen_steps}
+  </div>
+  {ending_map}
+</div>
+"""
+
+
+def get_shadow_branch_markdown(life: dict, side: str) -> str:
+    title = escape(life.get("title", "An unlived road"))
+    points = life.get("turning_points", [])[:3]
+    point_html = []
+    for index, point in enumerate(points, start=1):
+        point_html.append(
+            f"""
+<div class="shadow-point">
+  <div class="shadow-dot">{index}</div>
+  <div>{escape(shorten_text(point, 68))}</div>
+</div>
+"""
+        )
+
+    while len(point_html) < 3:
+        index = len(point_html) + 1
+        point_html.append(
+            f"""
+<div class="shadow-point">
+  <div class="shadow-dot">{index}</div>
+  <div>A hidden turn the road keeps to itself.</div>
+</div>
+"""
+        )
+
+    return f"""
+<div class="shadow-branch {side}">
+  <div class="shadow-title">{title}</div>
+  {''.join(point_html)}
+</div>
+"""
+
+
+def get_ending_branch_map_markdown(state: dict | None) -> str:
+    if not state or not state.get("ending"):
+        return ""
+
+    alternate_lives = state["ending"].get("alternate_lives", [])
+    if len(alternate_lives) < 2:
+        return ""
+
+    left_branch = get_shadow_branch_markdown(alternate_lives[0], "left")
+    right_branch = get_shadow_branch_markdown(alternate_lives[1], "right")
+
+    return f"""
+<div class="ending-map">
+  <div class="ending-map-title">The roads that kept walking without you</div>
+  <div class="branch-map">
+    {left_branch}
+    <div class="lived-stem">the life you lived</div>
+    {right_branch}
+  </div>
+</div>
+"""
 
 
 def get_hidden_custom_choice_outputs():
@@ -272,6 +783,7 @@ def start_story(
             "",
             "",
             "Nothing generated yet.",
+            get_trail_markdown(None),
             gr.update(interactive=False),
             gr.update(interactive=False),
             gr.update(interactive=False),
@@ -283,14 +795,15 @@ def start_story(
 
     yield (
         "Generating the first road...",
-        "",
-        "",
-        "",
-        "The model is writing. Local or remote inference can be slow.",
-        gr.update(interactive=False),
-        gr.update(interactive=False),
-        gr.update(interactive=False),
-        None,
+            "",
+            "",
+            "",
+            "The lantern is searching the first bend. Local or remote inference can be slow.",
+            get_trail_markdown(None),
+            gr.update(interactive=False),
+            gr.update(interactive=False),
+            gr.update(interactive=False),
+            None,
         *get_hidden_road_question_outputs(),
         *get_hidden_custom_choice_outputs(),
     )
@@ -312,6 +825,7 @@ def start_story(
         choice_b,
         choice_c,
         f"Choose one road to continue. This story will end after {state['max_steps']} major choices.",
+        get_trail_markdown(state),
         gr.update(interactive=True),
         gr.update(interactive=True),
         gr.update(interactive=True),
@@ -329,6 +843,7 @@ def choose_path(choice_id: str, state: dict):
             "",
             "",
             "No active story.",
+            get_trail_markdown(state),
             gr.update(interactive=False),
             gr.update(interactive=False),
             gr.update(interactive=False),
@@ -350,6 +865,7 @@ def choose_path(choice_id: str, state: dict):
             "",
             "",
             "Choice error.",
+            get_trail_markdown(state),
             *active_choice_buttons(state),
             state,
             *get_hidden_road_question_outputs(),
@@ -368,7 +884,8 @@ def continue_from_selection(state: dict, selected: dict):
         "",
         "",
         "",
-        "The model is generating the next branch.",
+        "The lantern is carrying your choice into the years ahead.",
+        get_trail_markdown(state),
         gr.update(interactive=False),
         gr.update(interactive=False),
         gr.update(interactive=False),
@@ -386,6 +903,7 @@ def continue_from_selection(state: dict, selected: dict):
             "",
             "",
             "This road has reached its ending.",
+            get_trail_markdown(state),
             gr.update(interactive=False),
             gr.update(interactive=False),
             gr.update(interactive=False),
@@ -405,6 +923,7 @@ def continue_from_selection(state: dict, selected: dict):
         choice_b,
         choice_c,
         f"Choose one road to continue. {len(branch['chosen_decisions'])} of {state['max_steps']} choices made.",
+        get_trail_markdown(state),
         gr.update(interactive=True),
         gr.update(interactive=True),
         gr.update(interactive=True),
@@ -429,6 +948,7 @@ def choose_custom_path(
             "",
             "",
             "No active story.",
+            get_trail_markdown(state),
             gr.update(interactive=False),
             gr.update(interactive=False),
             gr.update(interactive=False),
@@ -445,6 +965,7 @@ def choose_custom_path(
             choice_b,
             choice_c,
             "Custom choices are not available for this story yet.",
+            get_trail_markdown(state),
             *active_choice_buttons(state),
             state,
             *get_hidden_road_question_outputs(),
@@ -460,6 +981,7 @@ def choose_custom_path(
             choice_b,
             choice_c,
             error,
+            get_trail_markdown(state),
             *active_choice_buttons(state),
             state,
             *get_hidden_road_question_outputs(),
@@ -565,53 +1087,59 @@ def ask_untaken_2(question: str, state: dict):
     yield from ask_untaken_road("untaken_2", question, state)
 
 
-with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
+with gr.Blocks(title="Roads Untraveled") as demo:
+    gr.Markdown('<div class="eyebrow">A candlelit fork through unlived years</div>')
     gr.Markdown("# Roads Untraveled", elem_id="main-title")
     gr.Markdown(
-        "Weep not for roads untraveled, weep not for sights unseen, cause beyond every bend is a long blinding end, it's the worst kind of pain I've known",
+        "Choose one life. Let the others whisper from the trees.",
         elem_id="subtitle",
     )
 
     state = gr.State(None)
 
-    with gr.Row():
+    with gr.Group(elem_classes=["ritual-panel"]):
         premise = gr.Textbox(
-            label="Story premise",
+            label="First fork",
             placeholder="A robotics engineer receives an offer that would change the rest of his life...",
             lines=4,
             scale=4,
         )
 
-    with gr.Row():
-        mode = gr.Dropdown(
-            label="Story mode",
-            choices=["grounded", "strange", "cinematic"],
-            value="grounded",
-            scale=2,
-        )
-        max_steps = gr.Slider(
-            label="Major choices before ending",
-            minimum=5,
-            maximum=7,
-            step=1,
-            value=6,
-            scale=2,
-        )
-        custom_choices_enabled = gr.Checkbox(
-            label="Custom choices",
-            value=False,
-            scale=1,
-        )
-        ending_tone = gr.Dropdown(
-            label="Ending conversation",
-            choices=["poetic", "weird", "direct"],
-            value="poetic",
-            scale=2,
-        )
+        with gr.Row(elem_classes=["compact-controls"]):
+            mode = gr.Dropdown(
+                label="Story mode",
+                choices=["grounded", "strange", "cinematic"],
+                value="grounded",
+                scale=2,
+            )
+            max_steps = gr.Slider(
+                label="Major choices before ending",
+                minimum=5,
+                maximum=7,
+                step=1,
+                value=6,
+                scale=2,
+            )
+            custom_choices_enabled = gr.Checkbox(
+                label="Custom choices",
+                value=False,
+                scale=1,
+            )
+            ending_tone = gr.Dropdown(
+                label="Ending conversation",
+                choices=["poetic", "weird", "direct"],
+                value="poetic",
+                scale=2,
+            )
 
-    start_button = gr.Button("Begin story", variant="primary")
+    start_button = gr.Button("Light the first road", variant="primary")
 
-    status = gr.Markdown("Nothing generated yet.", elem_classes=["status-text"])
+    status = gr.Markdown(
+        "The lantern is cold. Write the first fork to begin.",
+        elem_classes=["status-text"],
+    )
+
+    trail_output = gr.Markdown(get_trail_markdown(None))
 
     story_output = gr.Markdown(
         "",
@@ -619,50 +1147,60 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
         elem_classes=["story-box"],
     )
 
-    gr.Markdown("## Roads ahead")
+    gr.Markdown("## Roads ahead", elem_classes=["section-title"])
 
     with gr.Row():
         with gr.Column():
             choice_a_card = gr.Markdown("", elem_classes=["choice-card"])
-            choice_a_button = gr.Button("Choose A", interactive=False)
+            choice_a_button = gr.Button("Take Road A", interactive=False)
 
         with gr.Column():
             choice_b_card = gr.Markdown("", elem_classes=["choice-card"])
-            choice_b_button = gr.Button("Choose B", interactive=False)
+            choice_b_button = gr.Button("Take Road B", interactive=False)
 
         with gr.Column():
             choice_c_card = gr.Markdown("", elem_classes=["choice-card"])
-            choice_c_button = gr.Button("Choose C", interactive=False)
+            choice_c_button = gr.Button("Take Road C", interactive=False)
 
-    custom_choice_header = gr.Markdown("", visible=False)
-    custom_choice_text = gr.Textbox(
-        label="Custom choice",
-        lines=2,
-        visible=False,
-        interactive=False,
-    )
-    custom_choice_button = gr.Button(
-        "Choose custom road",
-        visible=False,
-        interactive=False,
-    )
+    with gr.Group(elem_classes=["custom-road"]):
+        custom_choice_header = gr.Markdown("", visible=False)
+        custom_choice_text = gr.Textbox(
+            label="Custom choice",
+            lines=2,
+            visible=False,
+            interactive=False,
+        )
+        custom_choice_button = gr.Button(
+            "Choose custom road",
+            visible=False,
+            interactive=False,
+        )
 
-    road_question_header = gr.Markdown("", visible=False)
-    road_question_text = gr.Textbox(
-        label="Your question",
-        lines=2,
-        visible=False,
-        interactive=False,
-    )
+    with gr.Group(elem_classes=["road-question"]):
+        road_question_header = gr.Markdown("", visible=False)
+        road_question_text = gr.Textbox(
+            label="Your question",
+            lines=2,
+            visible=False,
+            interactive=False,
+        )
 
-    with gr.Row():
-        with gr.Column():
-            road_1_button = gr.Button("Ask", visible=False, interactive=False)
-            road_1_answer = gr.Markdown("", visible=False)
+        with gr.Row():
+            with gr.Column():
+                road_1_button = gr.Button("Ask", visible=False, interactive=False)
+                road_1_answer = gr.Markdown(
+                    "",
+                    visible=False,
+                    elem_classes=["road-answer"],
+                )
 
-        with gr.Column():
-            road_2_button = gr.Button("Ask", visible=False, interactive=False)
-            road_2_answer = gr.Markdown("", visible=False)
+            with gr.Column():
+                road_2_button = gr.Button("Ask", visible=False, interactive=False)
+                road_2_answer = gr.Markdown(
+                    "",
+                    visible=False,
+                    elem_classes=["road-answer"],
+                )
 
     outputs = [
         story_output,
@@ -670,6 +1208,7 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
         choice_b_card,
         choice_c_card,
         status,
+        trail_output,
         choice_a_button,
         choice_b_button,
         choice_c_button,
@@ -764,4 +1303,4 @@ with gr.Blocks(title="Roads Untraveled", css=CSS) as demo:
 
 if __name__ == "__main__":
     demo.queue()
-    demo.launch(inbrowser=False)
+    demo.launch(inbrowser=False, css=CSS)
