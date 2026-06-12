@@ -109,11 +109,12 @@ class AppTests(unittest.TestCase):
             create_initial_state("A premise.")["custom_choices_enabled"]
         )
 
-    def test_road_question_outputs_keep_known_good_positions(self):
+    def test_road_question_outputs_use_one_shared_textbox(self):
         self.assertIs(app.outputs[9], app.road_question_header)
-        self.assertIs(app.outputs[11], app.road_1_question)
-        self.assertIs(app.outputs[15], app.road_2_question)
-        self.assertIs(app.outputs[18], app.custom_choice_header)
+        self.assertIs(app.outputs[10], app.road_question_text)
+        self.assertIs(app.outputs[11], app.road_1_button)
+        self.assertIs(app.outputs[13], app.road_2_button)
+        self.assertIs(app.outputs[15], app.custom_choice_header)
 
     def test_custom_controls_hidden_until_enabled_after_initial_choice(self):
         self.assertFalse(app.should_show_custom_choice(None))
@@ -187,7 +188,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(captured["selected_choice"]["id"], "D")
         self.assertEqual(captured["selected_choice"]["tone"], "self-authored")
         self.assertIn("The custom road has consequences.", final_update[0])
-        self.assertTrue(final_update[18]["visible"])
+        self.assertTrue(final_update[15]["visible"])
 
     def test_invalid_custom_choice_preserves_current_scene(self):
         state = active_custom_state(True)
@@ -206,12 +207,55 @@ class AppTests(unittest.TestCase):
         self.assertEqual(result[0], "Current story")
         self.assertEqual(result[1], "A card")
         self.assertIn("at least 20", result[4])
-        self.assertEqual(result[19]["value"], "Too short")
+        self.assertEqual(result[16]["value"], "Too short")
 
-    def test_ask_second_untaken_road_uses_second_source(self):
+    def test_ask_first_untaken_road_uses_shared_question(self):
         state = app_ended_state()
+        captured = {}
 
         def fake_answer(state, source, question):
+            captured["source"] = source
+            captured["question"] = question
+            state["road_questions"][source]["used"] = True
+            state["road_questions"][source]["answer"] = {
+                "speaker": "The Research Life",
+                "source": source,
+                "answer": "I had distance, and it taught me hunger.",
+            }
+            return (
+                state,
+                SimpleNamespace(
+                    speaker="The Research Life",
+                    source=source,
+                    answer="I had distance, and it taught me hunger.",
+                ),
+            )
+
+        with patch("app.answer_untaken_road_question", side_effect=fake_answer):
+            updates = list(app.ask_untaken_1("Were you happier than me?", state))
+
+        final_update = updates[-1]
+        self.assertEqual(captured["source"], "untaken_1")
+        self.assertEqual(captured["question"], "Were you happier than me?")
+        self.assertEqual(final_update[0]["value"], "")
+        self.assertTrue(final_update[0]["interactive"])
+        self.assertFalse(final_update[1]["interactive"])
+        self.assertIn("The Research Life", final_update[2])
+        self.assertTrue(final_update[3]["interactive"])
+
+    def test_ask_second_untaken_road_uses_shared_question(self):
+        state = app_ended_state()
+        captured = {}
+
+        def fake_answer(state, source, question):
+            captured["source"] = source
+            captured["question"] = question
+            state["road_questions"][source]["used"] = True
+            state["road_questions"][source]["answer"] = {
+                "speaker": "The Near Life",
+                "source": source,
+                "answer": "I had closeness, and it cost me distance.",
+            }
             return (
                 state,
                 SimpleNamespace(
@@ -225,10 +269,59 @@ class AppTests(unittest.TestCase):
             updates = list(app.ask_untaken_2("Were you happier than me?", state))
 
         final_update = updates[-1]
+        self.assertEqual(captured["source"], "untaken_2")
+        self.assertEqual(captured["question"], "Were you happier than me?")
+        self.assertEqual(final_update[0]["value"], "")
+        self.assertTrue(final_update[0]["interactive"])
+        self.assertTrue(final_update[1]["interactive"])
+        self.assertFalse(final_update[3]["interactive"])
+        self.assertIn("The Near Life", final_update[4])
+
+    def test_empty_shared_question_does_not_call_model(self):
+        state = app_ended_state()
+
+        with patch("app.answer_untaken_road_question") as fake_answer:
+            result = next(app.ask_untaken_2(" ", state))
+
+        fake_answer.assert_not_called()
+        self.assertTrue(result[0]["interactive"])
+        self.assertIn("Ask a question first", result[4])
+
+    def test_shared_question_disables_after_both_roads_answer(self):
+        state = app_ended_state()
+        state["road_questions"]["untaken_1"]["used"] = True
+        state["road_questions"]["untaken_1"]["answer"] = {
+            "speaker": "The Research Life",
+            "source": "untaken_1",
+            "answer": "I answered first.",
+        }
+
+        def fake_answer(state, source, question):
+            state["road_questions"][source]["used"] = True
+            state["road_questions"][source]["answer"] = {
+                "speaker": "The Near Life",
+                "source": source,
+                "answer": "I answered last.",
+            }
+            return (
+                state,
+                SimpleNamespace(
+                    speaker="The Near Life",
+                    source=source,
+                    answer="I answered last.",
+                ),
+            )
+
+        with patch("app.answer_untaken_road_question", side_effect=fake_answer):
+            updates = list(app.ask_untaken_2("Did you miss me?", state))
+
+        final_update = updates[-1]
+        self.assertEqual(final_update[0]["value"], "")
         self.assertFalse(final_update[0]["interactive"])
         self.assertFalse(final_update[1]["interactive"])
-        self.assertIn("The Near Life", final_update[2])
-        self.assertIn("I had closeness", final_update[2])
+        self.assertFalse(final_update[3]["interactive"])
+        self.assertIn("I answered first", final_update[2])
+        self.assertIn("I answered last", final_update[4])
 
 
 if __name__ == "__main__":
