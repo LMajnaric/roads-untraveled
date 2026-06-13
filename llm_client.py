@@ -1,24 +1,49 @@
+import importlib
 import os
+from functools import lru_cache
+
 from dotenv import load_dotenv
-from openai import OpenAI
 
 load_dotenv()
 
-client = OpenAI(
-    base_url=os.getenv("LLM_BASE_URL", "http://127.0.0.1:8080/v1"),
-    api_key=os.getenv("LLM_API_KEY", "not-needed"),
-)
+BACKEND_MODULES = {
+    "llamacpp": "llm_backends.openai_compatible",
+    "openai": "llm_backends.openai_compatible",
+    "zerogpu": "llm_backends.zerogpu_transformers",
+}
 
-MODEL = os.getenv("LLM_MODEL", "gemma-4-local")
+
+def resolve_backend_name(value: str | None = None) -> str:
+    backend = (value or os.getenv("LLM_BACKEND") or "").strip().lower()
+    if not backend:
+        backend = "zerogpu" if _is_hugging_face_space() else "llamacpp"
+
+    if backend not in BACKEND_MODULES:
+        allowed = ", ".join(sorted(BACKEND_MODULES))
+        raise ValueError(f"Unsupported LLM_BACKEND={backend!r}. Expected one of: {allowed}")
+
+    return backend
+
+
+def _is_hugging_face_space() -> bool:
+    return bool(
+        os.getenv("SPACE_ID")
+        or os.getenv("SPACE_HOST")
+        or os.getenv("SPACE_REPO_NAME")
+        or os.getenv("HF_SPACE_ID")
+    )
+
+
+@lru_cache(maxsize=1)
+def _load_backend():
+    backend_name = resolve_backend_name()
+    return importlib.import_module(BACKEND_MODULES[backend_name])
 
 
 def generate_chat_response(messages, temperature=0.8, max_tokens=800):
-    response = client.chat.completions.create(
-        model=MODEL,
+    backend = _load_backend()
+    return backend.generate_chat_response(
         messages=messages,
         temperature=temperature,
-        top_p=0.9,
         max_tokens=max_tokens,
     )
-
-    return response.choices[0].message.content

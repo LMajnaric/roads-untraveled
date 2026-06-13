@@ -2,3 +2,7 @@ gradio
 openai
 python-dotenv
 pydantic
+spaces
+torch
+transformers
+accelerate
