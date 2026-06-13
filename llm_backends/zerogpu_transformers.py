@@ -14,7 +14,7 @@ from llm_backends.quantization import build_quantization_config
 
 MODEL_ID = os.getenv(
     "ZERO_GPU_MODEL_ID",
-    "google/gemma-4-31B-it",
+    "google/gemma-4-26B-A4B-it",
 )
 GPU_DURATION = int(os.getenv("ZERO_GPU_DURATION", "120"))
 TOP_P = float(os.getenv("ZERO_GPU_TOP_P", "0.9"))

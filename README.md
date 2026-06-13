@@ -62,7 +62,7 @@ the Space hardware to ZeroGPU and configure these Space variables:
 
 ```bash
 LLM_BACKEND=zerogpu
-ZERO_GPU_MODEL_ID=google/gemma-4-31B-it
+ZERO_GPU_MODEL_ID=google/gemma-4-26B-A4B-it
 ZERO_GPU_QUANTIZATION=bnb_4bit
 ZERO_GPU_ENABLE_THINKING=false
 ```
