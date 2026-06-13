@@ -354,6 +354,35 @@ Story director:
 """
 
 
+def get_alternate_life_mode_guidance(mode: StoryMode) -> str:
+    mode_rules = {
+        "grounded": (
+            "Keep each alternate life realistic and intimate. Its turning points "
+            "should come from family, work, health, money, place, duty, grief, "
+            "children, aging, or belonging."
+        ),
+        "strange": (
+            "Make each alternate life genuinely uncanny too. Each untaken road "
+            "should contain an impossible pressure, trace, visitor, artifact, "
+            "memory, or branch-crossing consequence while staying emotionally human."
+        ),
+        "cinematic": (
+            "Make each alternate life cinematic too. Its turning points should "
+            "include bolder reversals, public consequences, dangerous loyalties, "
+            "betrayals, sacrifices, or survival with a visible scar."
+        ),
+    }
+
+    return f"""
+Alternate-life mode guidance:
+- Selected story mode: {mode}
+- Mode direction: {MODE_DIRECTIONS[mode]}
+- The two alternate lives must obey the selected story mode as strongly as the chosen life.
+- {mode_rules[mode]}
+- Do not make the untaken roads plainer, safer, or more ordinary than the lived road.
+"""
+
+
 def remember_initial_fork(
     state: dict,
     branch: dict,
@@ -678,6 +707,7 @@ def generate_ending(
     max_steps = clamp_max_steps(state.get("max_steps"))
     decision_count = len(branch["chosen_decisions"])
     director_context = get_director_context(decision_count, mode, max_steps)
+    alternate_life_mode_guidance = get_alternate_life_mode_guidance(mode)
 
     user_prompt = f"""
 Premise:
@@ -706,12 +736,15 @@ Ending conversation tone:
 
 {director_context}
 
+{alternate_life_mode_guidance}
+
 Task:
 End the chosen life path. Then simulate exactly two miniature alternate lives, each based only on one of the two initial roads not taken. Finally, write a three-line conversation where the lived road and the two initial roads not taken briefly speak to each other.
 
 Rules:
 - Do not use later unchosen choices as alternate-life seeds.
 - The alternate lives should feel coherent from the initial fork, not related to later choices in the chosen road.
+- The alternate lives must follow the selected story mode, including its level of realism, strangeness, or cinematic intensity.
 - Give each alternate life exactly 3 hidden turning points.
 - Each hidden turning point must be a major life event and maximum 12 words.
 - Synthesize the hidden turning points in each alternate-life summary.

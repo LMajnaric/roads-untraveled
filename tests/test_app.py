@@ -110,11 +110,11 @@ class AppTests(unittest.TestCase):
         )
 
     def test_road_question_outputs_use_one_shared_textbox(self):
-        self.assertIs(app.outputs[9], app.road_question_header)
-        self.assertIs(app.outputs[10], app.road_question_text)
-        self.assertIs(app.outputs[11], app.road_1_button)
-        self.assertIs(app.outputs[13], app.road_2_button)
-        self.assertIs(app.outputs[15], app.custom_choice_header)
+        self.assertIs(app.outputs[10], app.road_question_header)
+        self.assertIs(app.outputs[11], app.road_question_text)
+        self.assertIs(app.outputs[12], app.road_1_button)
+        self.assertIs(app.outputs[14], app.road_2_button)
+        self.assertIs(app.outputs[16], app.custom_choice_header)
 
     def test_custom_controls_hidden_until_enabled_after_initial_choice(self):
         self.assertFalse(app.should_show_custom_choice(None))
@@ -188,7 +188,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(captured["selected_choice"]["id"], "D")
         self.assertEqual(captured["selected_choice"]["tone"], "self-authored")
         self.assertIn("The custom road has consequences.", final_update[0])
-        self.assertTrue(final_update[15]["visible"])
+        self.assertTrue(final_update[16]["visible"])
 
     def test_invalid_custom_choice_preserves_current_scene(self):
         state = active_custom_state(True)
@@ -207,7 +207,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(result[0], "Current story")
         self.assertEqual(result[1], "A card")
         self.assertIn("at least 20", result[4])
-        self.assertEqual(result[16]["value"], "Too short")
+        self.assertEqual(result[17]["value"], "Too short")
 
     def test_ask_first_untaken_road_uses_shared_question(self):
         state = app_ended_state()

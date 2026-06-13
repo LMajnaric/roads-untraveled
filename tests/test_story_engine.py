@@ -352,6 +352,11 @@ class StoryEngineTests(unittest.TestCase):
         self.assertIn("exactly 3 hidden turning points", captured_prompt)
         self.assertIn("maximum 12 words", captured_prompt)
         self.assertIn("Do not write full scenes for untaken roads", captured_prompt)
+        self.assertIn("Alternate-life mode guidance", captured_prompt)
+        self.assertIn("Selected story mode: strange", captured_prompt)
+        self.assertIn("genuinely uncanny too", captured_prompt)
+        self.assertIn("must obey the selected story mode", captured_prompt)
+        self.assertIn("Do not make the untaken roads plainer", captured_prompt)
 
     def test_answer_untaken_road_question_rejects_invalid_state(self):
         with self.assertRaisesRegex(ValueError, "No ending"):
