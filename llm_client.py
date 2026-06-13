@@ -47,3 +47,7 @@ def generate_chat_response(messages, temperature=0.8, max_tokens=800):
         temperature=temperature,
         max_tokens=max_tokens,
     )
+
+
+if resolve_backend_name() == "zerogpu":
+    _load_backend()
