@@ -10,10 +10,11 @@ except ImportError:
     AutoModelForMultimodalLM = None
 
 from llm_backends.message_format import normalize_messages
+from llm_backends.quantization import build_quantization_config
 
 MODEL_ID = os.getenv(
     "ZERO_GPU_MODEL_ID",
-    "LilaRest/gemma-4-31B-it-NVFP4-turbo",
+    "google/gemma-4-31B-it",
 )
 GPU_DURATION = int(os.getenv("ZERO_GPU_DURATION", "120"))
 TOP_P = float(os.getenv("ZERO_GPU_TOP_P", "0.9"))
@@ -28,9 +29,12 @@ ENABLE_THINKING = os.getenv("ZERO_GPU_ENABLE_THINKING", "false").strip().lower()
 def _model_kwargs(token):
     kwargs = {
         "device_map": "auto",
+        "quantization_config": build_quantization_config(),
     }
     if token:
         kwargs["token"] = token
+    if kwargs["quantization_config"] is None:
+        del kwargs["quantization_config"]
     return kwargs
 
 
@@ -39,8 +43,7 @@ def _load_model():
         raise ValueError(
             "ZERO_GPU_MODEL_ID points to a GGUF/llama.cpp model repository. "
             "The ZeroGPU backend uses Transformers, so choose a Transformers-native "
-            "model such as LilaRest/gemma-4-31B-it-NVFP4-turbo, "
-            "google/gemma-4-31B-it, or google/gemma-4-26B-A4B-it. "
+            "model such as google/gemma-4-31B-it or google/gemma-4-26B-A4B-it. "
             "Set LLM_BACKEND=llamacpp for a llama.cpp OpenAI-compatible server."
         )
 

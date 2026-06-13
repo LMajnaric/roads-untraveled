@@ -62,19 +62,19 @@ the Space hardware to ZeroGPU and configure these Space variables:
 
 ```bash
 LLM_BACKEND=zerogpu
-ZERO_GPU_MODEL_ID=LilaRest/gemma-4-31B-it-NVFP4-turbo
+ZERO_GPU_MODEL_ID=google/gemma-4-31B-it
+ZERO_GPU_QUANTIZATION=bnb_4bit
 ZERO_GPU_ENABLE_THINKING=false
 ```
 
 ZeroGPU uses the in-process Transformers backend, so `ZERO_GPU_MODEL_ID` must be
 a Transformers-native model repository. GGUF repositories such as
 `google/gemma-4-31B-it-qat-q4_0-gguf` are for llama.cpp and should be used with
-`LLM_BACKEND=llamacpp`, not the ZeroGPU backend. The NVFP4 model is a fast
-31B-quality option for ZeroGPU's Blackwell hardware. If it fails to load, try
-`google/gemma-4-26B-A4B-it` for a faster official MoE fallback or
-`google/gemma-4-31B-it` for the full dense official model. Add `HF_TOKEN` as a
-Space secret if the selected model requires authenticated download or license
-acceptance.
+`LLM_BACKEND=llamacpp`, not the ZeroGPU backend. The first Space experiment uses
+official dense Gemma 4 31B with bitsandbytes NF4 quantization. If it still OOMs,
+try `google/gemma-4-26B-A4B-it` with the same `ZERO_GPU_QUANTIZATION=bnb_4bit`.
+Add `HF_TOKEN` as a Space secret if the selected model requires authenticated
+download or license acceptance.
 
 Every model used for the hackathon submission should stay under the 32B total
 parameter limit. The app can still point at an OpenAI-compatible backend by
