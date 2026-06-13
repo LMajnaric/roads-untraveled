@@ -18,6 +18,7 @@ MODEL_ID = os.getenv(
     "google/gemma-4-26B-A4B-it",
 )
 GPU_DURATION = int(os.getenv("ZERO_GPU_DURATION", "120"))
+GPU_SIZE = os.getenv("ZERO_GPU_SIZE", "large").strip().lower()
 TOP_P = float(os.getenv("ZERO_GPU_TOP_P", "0.9"))
 DIAGNOSTICS_ENABLED = os.getenv("ZERO_GPU_DIAGNOSTICS", "1").strip().lower() in {
     "1",
@@ -71,7 +72,8 @@ def _load_model():
         f"model_id={MODEL_ID!r} "
         f"quantization={os.getenv('ZERO_GPU_QUANTIZATION', 'bnb_4bit')!r} "
         f"enable_thinking={ENABLE_THINKING} "
-        f"gpu_duration={GPU_DURATION}"
+        f"gpu_duration={GPU_DURATION} "
+        f"gpu_size={GPU_SIZE!r}"
     )
 
     try:
@@ -254,7 +256,7 @@ def _parse_response(text):
     return text.strip()
 
 
-@spaces.GPU(duration=GPU_DURATION)
+@spaces.GPU(duration=GPU_DURATION, size=GPU_SIZE)
 def _generate_on_gpu(messages, temperature, max_tokens):
     generation_kwargs = {
         "max_new_tokens": int(max_tokens),
