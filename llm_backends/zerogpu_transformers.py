@@ -1,4 +1,5 @@
 import os
+from collections import Counter
 
 import spaces
 import torch
@@ -18,6 +19,12 @@ MODEL_ID = os.getenv(
 )
 GPU_DURATION = int(os.getenv("ZERO_GPU_DURATION", "120"))
 TOP_P = float(os.getenv("ZERO_GPU_TOP_P", "0.9"))
+DIAGNOSTICS_ENABLED = os.getenv("ZERO_GPU_DIAGNOSTICS", "1").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 ENABLE_THINKING = os.getenv("ZERO_GPU_ENABLE_THINKING", "false").strip().lower() in {
     "1",
     "true",
@@ -26,10 +33,16 @@ ENABLE_THINKING = os.getenv("ZERO_GPU_ENABLE_THINKING", "false").strip().lower()
 }
 
 
+def _log(message):
+    if DIAGNOSTICS_ENABLED:
+        print(f"[zerogpu] {message}", flush=True)
+
+
 def _model_kwargs(token):
+    quantization_config = build_quantization_config()
     kwargs = {
         "device_map": "auto",
-        "quantization_config": build_quantization_config(),
+        "quantization_config": quantization_config,
     }
     if token:
         kwargs["token"] = token
@@ -49,6 +62,13 @@ def _load_model():
 
     token = os.getenv("HF_TOKEN") or None
     processor_kwargs = {"token": token} if token else {}
+    _log(
+        "loading model "
+        f"model_id={MODEL_ID!r} "
+        f"quantization={os.getenv('ZERO_GPU_QUANTIZATION', 'bnb_4bit')!r} "
+        f"enable_thinking={ENABLE_THINKING} "
+        f"gpu_duration={GPU_DURATION}"
+    )
 
     try:
         processor = AutoProcessor.from_pretrained(MODEL_ID, **processor_kwargs)
@@ -63,6 +83,7 @@ def _load_model():
 
     if not getattr(model, "hf_device_map", None):
         model.to("cuda")
+    _log_model_diagnostics(model)
     return processor, model
 
 
@@ -74,20 +95,24 @@ def _load_auto_model(token):
     errors = []
     for loader in loaders:
         try:
-            return loader.from_pretrained(
+            model = loader.from_pretrained(
                 MODEL_ID,
                 dtype="auto",
                 trust_remote_code=True,
                 **_model_kwargs(token),
             )
+            _log(f"loaded with {loader.__name__}")
+            return model
         except TypeError:
             try:
-                return loader.from_pretrained(
+                model = loader.from_pretrained(
                     MODEL_ID,
                     torch_dtype="auto",
                     trust_remote_code=True,
                     **_model_kwargs(token),
                 )
+                _log(f"loaded with {loader.__name__} using torch_dtype fallback")
+                return model
             except Exception as exc:
                 errors.append(exc)
         except Exception as exc:
@@ -96,6 +121,74 @@ def _load_auto_model(token):
     raise ValueError(
         f"Could not load {MODEL_ID!r} with available Transformers auto model classes."
     ) from errors[-1]
+
+
+def _log_model_diagnostics(model):
+    config = getattr(model, "config", None)
+    quantization_config = getattr(model, "quantization_config", None)
+    hf_device_map = getattr(model, "hf_device_map", None)
+    parameter_count = _count_parameters(model)
+    parameter_gib = _estimate_parameter_gib(model)
+
+    _log(f"model_class={model.__class__.__name__}")
+    if config is not None:
+        _log(
+            "config "
+            f"model_type={getattr(config, 'model_type', None)!r} "
+            f"max_position_embeddings={getattr(config, 'max_position_embeddings', None)!r} "
+            f"sliding_window={getattr(config, 'sliding_window', None)!r}"
+        )
+    _log(f"quantization_config={quantization_config}")
+    _log(f"is_loaded_in_4bit={getattr(model, 'is_loaded_in_4bit', None)!r}")
+    _log(f"is_loaded_in_8bit={getattr(model, 'is_loaded_in_8bit', None)!r}")
+    _log(f"parameter_count={parameter_count:,}")
+    _log(f"estimated_parameter_storage_gib={parameter_gib:.2f}")
+    if hf_device_map:
+        _log(f"device_map_summary={dict(Counter(hf_device_map.values()))}")
+        _log(f"device_map_entries={len(hf_device_map)}")
+    else:
+        _log(f"model_device={getattr(model, 'device', None)!r}")
+    _log_gpu_memory("after_load")
+
+
+def _count_parameters(model):
+    return sum(parameter.numel() for parameter in model.parameters())
+
+
+def _estimate_parameter_gib(model):
+    total_bytes = 0
+    for parameter in model.parameters():
+        try:
+            total_bytes += parameter.numel() * parameter.element_size()
+        except RuntimeError:
+            pass
+    return total_bytes / (1024**3)
+
+
+def _log_gpu_memory(label):
+    if not DIAGNOSTICS_ENABLED:
+        return
+    if not torch.cuda.is_available():
+        _log(f"gpu_memory[{label}]=cuda_unavailable")
+        return
+
+    parts = []
+    for index in range(torch.cuda.device_count()):
+        allocated = torch.cuda.memory_allocated(index) / (1024**3)
+        reserved = torch.cuda.memory_reserved(index) / (1024**3)
+        try:
+            free, total = torch.cuda.mem_get_info(index)
+            free_gib = free / (1024**3)
+            total_gib = total / (1024**3)
+            parts.append(
+                f"cuda:{index} allocated={allocated:.2f}GiB "
+                f"reserved={reserved:.2f}GiB free={free_gib:.2f}GiB total={total_gib:.2f}GiB"
+            )
+        except RuntimeError:
+            parts.append(
+                f"cuda:{index} allocated={allocated:.2f}GiB reserved={reserved:.2f}GiB"
+            )
+    _log(f"gpu_memory[{label}]: " + " | ".join(parts))
 
 
 _PROCESSOR, _MODEL = _load_model()
@@ -151,10 +244,20 @@ def _generate_on_gpu(messages, temperature, max_tokens):
     if tokenizer is not None and getattr(tokenizer, "eos_token_id", None) is not None:
         generation_kwargs["pad_token_id"] = tokenizer.eos_token_id
 
+    _log_gpu_memory("before_generate")
     text = _apply_chat_template(messages)
     inputs = _PROCESSOR(text=text, return_tensors="pt").to(_input_device())
     input_len = inputs["input_ids"].shape[-1]
+    _log(
+        "generation_request "
+        f"input_tokens={input_len} "
+        f"max_new_tokens={int(max_tokens)} "
+        f"temperature={float(temperature):.3f}"
+    )
     outputs = _MODEL.generate(**inputs, **generation_kwargs)
+    output_len = outputs[0].shape[-1] - input_len
+    _log(f"generation_result output_tokens={output_len}")
+    _log_gpu_memory("after_generate")
     response = _PROCESSOR.decode(
         outputs[0][input_len:],
         skip_special_tokens=False,
