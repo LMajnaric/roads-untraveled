@@ -53,11 +53,12 @@ def _load_model():
     try:
         processor = AutoProcessor.from_pretrained(MODEL_ID, **processor_kwargs)
         model = _load_auto_model(token)
-    except ValueError as exc:
-        raise ValueError(
+    except Exception as exc:
+        raise RuntimeError(
             f"Could not load ZERO_GPU_MODEL_ID={MODEL_ID!r} with Transformers. "
-            "Use a Transformers-native model repository for LLM_BACKEND=zerogpu. "
-            "GGUF repositories are for llama.cpp, not this ZeroGPU backend."
+            "If this is a compressed or AWQ checkpoint, confirm its required "
+            "runtime dependencies are installed and set ZERO_GPU_QUANTIZATION=none. "
+            f"Original error: {type(exc).__name__}: {exc}"
         ) from exc
 
     if not getattr(model, "hf_device_map", None):
