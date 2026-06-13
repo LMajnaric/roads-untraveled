@@ -94,9 +94,7 @@ CSS = """
 .ritual-panel,
 .story-box,
 .choice-card,
-.trail-box,
-.custom-road,
-.road-question {
+.trail-box {
     border: 1px solid var(--lantern-border);
     border-radius: 8px;
     background:
@@ -506,17 +504,57 @@ button.primary,
     background: linear-gradient(rgba(231, 184, 93, 0.85), rgba(231, 184, 93, 0.16));
 }
 
-.custom-road,
-.road-question {
-    padding: 16px;
-    margin-top: 16px;
-}
-
 .road-answer {
     border: 1px solid rgba(231, 184, 93, 0.22);
     border-radius: 8px;
     padding: 12px;
     background: rgba(17, 14, 12, 0.42);
+}
+
+.custom-road-header,
+.road-question-header {
+    margin-top: 16px;
+    padding: 14px 16px 0;
+    border: 1px solid var(--lantern-border);
+    border-bottom: 0;
+    border-radius: 8px 8px 0 0;
+    background:
+        linear-gradient(135deg, rgba(255, 244, 219, 0.065), transparent 42%),
+        var(--lantern-panel);
+}
+
+.custom-road-input,
+.road-question-input {
+    padding: 0 16px 14px !important;
+    border-right: 1px solid var(--lantern-border);
+    border-left: 1px solid var(--lantern-border);
+    background: var(--lantern-panel);
+}
+
+.custom-road-input textarea,
+.road-question-input textarea {
+    border: 1px solid rgba(231, 184, 93, 0.34) !important;
+    border-radius: 8px !important;
+    background: rgba(18, 14, 11, 0.72) !important;
+    color: var(--lantern-ink) !important;
+}
+
+.custom-road-input textarea::placeholder,
+.road-question-input textarea::placeholder {
+    color: rgba(244, 229, 196, 0.52) !important;
+}
+
+.custom-road-button {
+    padding: 0 16px 16px;
+    border-right: 1px solid var(--lantern-border);
+    border-bottom: 1px solid var(--lantern-border);
+    border-left: 1px solid var(--lantern-border);
+    border-radius: 0 0 8px 8px;
+    background: var(--lantern-panel);
+}
+
+.road-question-actions {
+    margin-top: 0;
 }
 
 @media (max-width: 760px) {
@@ -1282,45 +1320,54 @@ with gr.Blocks(title="Roads Untraveled") as demo:
             choice_c_card = gr.Markdown("", elem_classes=["choice-card"])
             choice_c_button = gr.Button("Take Road C", interactive=False)
 
-    with gr.Group(elem_classes=["custom-road"]):
-        custom_choice_header = gr.Markdown("", visible=False)
-        custom_choice_text = gr.Textbox(
-            label="Custom choice",
-            lines=2,
-            visible=False,
-            interactive=False,
-        )
-        custom_choice_button = gr.Button(
-            "Choose custom road",
-            visible=False,
-            interactive=False,
-        )
+    custom_choice_header = gr.Markdown(
+        "",
+        visible=False,
+        elem_classes=["custom-road-header"],
+    )
+    custom_choice_text = gr.Textbox(
+        label="Custom choice",
+        lines=2,
+        visible=False,
+        interactive=False,
+        elem_classes=["custom-road-input"],
+    )
+    custom_choice_button = gr.Button(
+        "Choose custom road",
+        visible=False,
+        interactive=False,
+        elem_classes=["custom-road-button"],
+    )
 
-    with gr.Group(elem_classes=["road-question"]):
-        road_question_header = gr.Markdown("", visible=False)
-        road_question_text = gr.Textbox(
-            label="Your question",
-            lines=2,
-            visible=False,
-            interactive=False,
-        )
+    road_question_header = gr.Markdown(
+        "",
+        visible=False,
+        elem_classes=["road-question-header"],
+    )
+    road_question_text = gr.Textbox(
+        label="Your question",
+        lines=2,
+        visible=False,
+        interactive=False,
+        elem_classes=["road-question-input"],
+    )
 
-        with gr.Row():
-            with gr.Column():
-                road_1_button = gr.Button("Ask", visible=False, interactive=False)
-                road_1_answer = gr.Markdown(
-                    "",
-                    visible=False,
-                    elem_classes=["road-answer"],
-                )
+    with gr.Row(elem_classes=["road-question-actions"]):
+        with gr.Column():
+            road_1_button = gr.Button("Ask", visible=False, interactive=False)
+            road_1_answer = gr.Markdown(
+                "",
+                visible=False,
+                elem_classes=["road-answer"],
+            )
 
-            with gr.Column():
-                road_2_button = gr.Button("Ask", visible=False, interactive=False)
-                road_2_answer = gr.Markdown(
-                    "",
-                    visible=False,
-                    elem_classes=["road-answer"],
-                )
+        with gr.Column():
+            road_2_button = gr.Button("Ask", visible=False, interactive=False)
+            road_2_answer = gr.Markdown(
+                "",
+                visible=False,
+                elem_classes=["road-answer"],
+            )
 
     outputs = [
         story_output,
