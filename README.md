@@ -1,7 +1,7 @@
 ---
 title: Roads Untraveled
 emoji: 🛤️
-colorFrom: amber
+colorFrom: gray
 colorTo: indigo
 sdk: gradio
 app_file: app.py
