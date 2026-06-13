@@ -106,19 +106,134 @@ CSS = """
 }
 
 .ritual-panel {
-    padding: 18px;
+    padding: 22px;
     margin-bottom: 14px;
+    background:
+        linear-gradient(135deg, rgba(231, 184, 93, 0.1), transparent 38%),
+        linear-gradient(180deg, rgba(45, 35, 25, 0.96), rgba(29, 23, 18, 0.95));
 }
 
-.ritual-panel textarea,
-.ritual-panel input,
-.ritual-panel select,
+.ritual-panel .form,
+.ritual-panel .block,
+.ritual-panel .block-label,
+.ritual-panel .label-wrap,
 .ritual-panel .wrap,
 .ritual-panel .container,
 .ritual-panel .secondary-wrap {
-    border-color: rgba(231, 184, 93, 0.25) !important;
-    background: rgba(17, 14, 12, 0.66) !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.ritual-panel .block-label,
+.ritual-panel .label-wrap {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.ritual-panel label,
+.ritual-panel .label-wrap,
+.ritual-panel .block-label {
+    color: var(--lantern-amber) !important;
+    font-family: Georgia, "Palatino Linotype", "Times New Roman", serif !important;
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0;
+}
+
+.premise-field {
+    padding: 0 !important;
+    background: transparent !important;
+}
+
+.premise-field textarea {
+    min-height: 8.8rem !important;
+    padding: 1.1rem 1.15rem !important;
+    border: 1px solid rgba(231, 184, 93, 0.42) !important;
+    border-radius: 8px !important;
+    background:
+        linear-gradient(180deg, rgba(244, 229, 196, 0.055), rgba(244, 229, 196, 0.018)),
+        rgba(18, 14, 11, 0.86) !important;
+    color: #fff1d3 !important;
+    font-family: Georgia, "Palatino Linotype", "Times New Roman", serif !important;
+    font-size: 1.08rem !important;
+    line-height: 1.7 !important;
+    box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.25) !important;
+}
+
+.premise-field textarea:focus {
+    border-color: rgba(255, 213, 129, 0.82) !important;
+    box-shadow:
+        inset 0 0 28px rgba(0, 0, 0, 0.25),
+        0 0 0 2px rgba(231, 184, 93, 0.16),
+        0 0 32px rgba(231, 184, 93, 0.16) !important;
+}
+
+.premise-field textarea::placeholder {
+    color: rgba(244, 229, 196, 0.58) !important;
+}
+
+.settings-strip {
+    margin-top: 0.85rem !important;
+    padding-top: 0.9rem !important;
+    border-top: 1px solid rgba(231, 184, 93, 0.2);
+    align-items: end;
+    gap: 0.75rem !important;
+    background: rgba(18, 14, 11, 0.18);
+    border-radius: 8px;
+}
+
+.settings-strip .block {
+    padding: 0 !important;
+}
+
+.setting-control {
+    min-width: 0;
+}
+
+.setting-control .wrap,
+.setting-control .container,
+.setting-control .secondary-wrap {
+    border-color: rgba(231, 184, 93, 0.24) !important;
+    background: rgba(18, 14, 11, 0.55) !important;
     color: var(--lantern-ink) !important;
+}
+
+.setting-control input:not([type="checkbox"]),
+.setting-control select {
+    min-height: 2.4rem !important;
+    border-radius: 8px !important;
+    background: transparent !important;
+    color: var(--lantern-ink) !important;
+}
+
+.setting-control .wrap:hover,
+.setting-control .container:hover {
+    border-color: rgba(231, 184, 93, 0.46) !important;
+}
+
+.custom-choice-toggle,
+.custom-choice-toggle .wrap,
+.custom-choice-toggle .container,
+.custom-choice-toggle .checkbox,
+.custom-choice-toggle label {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+.custom-choice-toggle input[type="checkbox"] {
+    width: 1.05rem !important;
+    height: 1.05rem !important;
+    min-height: 1.05rem !important;
+    accent-color: var(--lantern-amber);
+}
+
+.custom-choice-toggle label {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.45rem !important;
+    min-height: 2.4rem;
 }
 
 .compact-controls {
@@ -1097,20 +1212,22 @@ with gr.Blocks(title="Roads Untraveled") as demo:
 
     state = gr.State(None)
 
-    with gr.Group(elem_classes=["ritual-panel"]):
+    with gr.Column(elem_classes=["ritual-panel"]):
         premise = gr.Textbox(
             label="First fork",
             placeholder="A robotics engineer receives an offer that would change the rest of his life...",
             lines=4,
             scale=4,
+            elem_classes=["premise-field"],
         )
 
-        with gr.Row(elem_classes=["compact-controls"]):
+        with gr.Row(elem_classes=["compact-controls", "settings-strip"]):
             mode = gr.Dropdown(
                 label="Story mode",
                 choices=["grounded", "strange", "cinematic"],
                 value="grounded",
                 scale=2,
+                elem_classes=["setting-control"],
             )
             max_steps = gr.Slider(
                 label="Major choices before ending",
@@ -1119,17 +1236,20 @@ with gr.Blocks(title="Roads Untraveled") as demo:
                 step=1,
                 value=6,
                 scale=2,
+                elem_classes=["setting-control"],
             )
             custom_choices_enabled = gr.Checkbox(
                 label="Custom choices",
                 value=False,
                 scale=1,
+                elem_classes=["setting-control", "custom-choice-toggle"],
             )
             ending_tone = gr.Dropdown(
                 label="Ending conversation",
                 choices=["poetic", "weird", "direct"],
                 value="poetic",
                 scale=2,
+                elem_classes=["setting-control"],
             )
 
     start_button = gr.Button("Light the first road", variant="primary")
