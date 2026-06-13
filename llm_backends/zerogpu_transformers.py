@@ -51,6 +51,10 @@ def _model_kwargs(token):
     return kwargs
 
 
+def _requested_quantization_config():
+    return build_quantization_config()
+
+
 def _load_model():
     if "gguf" in MODEL_ID.lower():
         raise ValueError(
@@ -138,9 +142,12 @@ def _log_model_diagnostics(model):
             f"max_position_embeddings={getattr(config, 'max_position_embeddings', None)!r} "
             f"sliding_window={getattr(config, 'sliding_window', None)!r}"
         )
-    _log(f"quantization_config={quantization_config}")
+    _log(f"requested_quantization_config={_requested_quantization_config()}")
+    _log(f"model_quantization_config={quantization_config}")
     _log(f"is_loaded_in_4bit={getattr(model, 'is_loaded_in_4bit', None)!r}")
     _log(f"is_loaded_in_8bit={getattr(model, 'is_loaded_in_8bit', None)!r}")
+    _log(f"bnb_parameter_summary={_bnb_parameter_summary(model)}")
+    _log(f"bnb_module_summary={_bnb_module_summary(model)}")
     _log(f"parameter_count={parameter_count:,}")
     _log(f"estimated_parameter_storage_gib={parameter_gib:.2f}")
     if hf_device_map:
@@ -163,6 +170,22 @@ def _estimate_parameter_gib(model):
         except RuntimeError:
             pass
     return total_bytes / (1024**3)
+
+
+def _bnb_parameter_summary(model):
+    summary = Counter()
+    for parameter in model.parameters():
+        summary[parameter.__class__.__name__] += 1
+    return dict(summary)
+
+
+def _bnb_module_summary(model):
+    summary = Counter()
+    for module in model.modules():
+        module_name = module.__class__.__name__
+        if "4bit" in module_name.lower() or "8bit" in module_name.lower():
+            summary[module_name] += 1
+    return dict(summary)
 
 
 def _log_gpu_memory(label):
