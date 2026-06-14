@@ -6,9 +6,7 @@ colorTo: indigo
 sdk: gradio
 app_file: app.py
 license: gpl-3.0
-tags:
-    achievement: offgrid
-    achievement: llama
+achievement: offgrid, llama
 track: backyard
 ---
 
