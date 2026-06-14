@@ -1241,10 +1241,12 @@ def ask_untaken_2(question: str, state: dict):
 
 
 with gr.Blocks(title="Roads Untraveled") as demo:
-    gr.Markdown('<div class="eyebrow">A candlelit fork through unlived years</div>')
+    gr.Markdown('<div class="eyebrow">Weep not for</div>')
     gr.Markdown("# Roads Untraveled", elem_id="main-title")
     gr.Markdown(
-        "Choose one life. Let the others whisper from the trees.",
+        "Weep not for paths left 'lone." \
+        "'Cause beyond every bend is a long binding end " \
+        "it's the worst kind of pain I've known...",
         elem_id="subtitle",
     )
 
@@ -1253,7 +1255,8 @@ with gr.Blocks(title="Roads Untraveled") as demo:
     with gr.Column(elem_classes=["ritual-panel"]):
         premise = gr.Textbox(
             label="First fork",
-            placeholder="A robotics engineer receives an offer that would change the rest of his life...",
+            placeholder="Describe a point in your life when a major crossroad occurred, " \
+            "add additional context such as age, relationship status, country of residence etc.",
             lines=4,
             scale=4,
             elem_classes=["premise-field"],
@@ -1293,7 +1296,7 @@ with gr.Blocks(title="Roads Untraveled") as demo:
     start_button = gr.Button("Light the first road", variant="primary")
 
     status = gr.Markdown(
-        "The lantern is cold. Write the first fork to begin.",
+        "The story is untold. Write the first crossroad to begin.",
         elem_classes=["status-text"],
     )
 
@@ -1346,6 +1349,7 @@ with gr.Blocks(title="Roads Untraveled") as demo:
     )
     road_question_text = gr.Textbox(
         label="Your question",
+        placeholder="Were you happier than me?",
         lines=2,
         visible=False,
         interactive=False,
