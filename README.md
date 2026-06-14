@@ -5,9 +5,15 @@ colorFrom: gray
 colorTo: indigo
 sdk: gradio
 app_file: app.py
+pinned: true
 license: gpl-3.0
-achievement: offgrid, llama
-track: backyard
+tags:
+- achievement: offgrid
+- achievement: llama
+- achievement: sharing
+- track: backyard
+- llama-cpp
+- build-small-hackathon
 ---
 
 # Roads Untraveled
