@@ -7,9 +7,9 @@ sdk: gradio
 app_file: app.py
 license: gpl-3.0
 tags:
-    achievement:offgrid
-    achievement:llama
-track:backyard
+    achievement: offgrid
+    achievement: llama
+track: backyard
 ---
 
 # Roads Untraveled
